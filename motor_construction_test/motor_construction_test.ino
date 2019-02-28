@@ -39,9 +39,9 @@ void loop() {
   digitalWrite(DIR_B_M1, HIGH);
   digitalWrite(DIR_B_M2, HIGH);
 
-  delay(5000);
+  //delay(5000);
 
-  digitalWrite(DIR_B_M1, LOW);
+  //digitalWrite(DIR_B_M1, LOW);
 
   delay(5000);
 }
