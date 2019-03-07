@@ -3,9 +3,11 @@
 #define S2 6
 #define S3 7
 #define sensorOut 8
+// Vin 3.3V 
 int red = 0;
 int blue = 0;
 int green = 0;
+int total = 0;
 
 void setup() {
   pinMode(S0, OUTPUT);
@@ -27,11 +29,11 @@ void loop() {
   digitalWrite(S3,LOW);
   // Reading the output frequency
   red = pulseIn(sensorOut, LOW);
-  red = map(red, 9, 19, 255, 0);
+  red = map(red, 60, 146, 255, 0);
   // Printing the value on the serial monitor
-  Serial.print("R= ");//printing name
-  Serial.print(red);//printing RED color frequency
-  Serial.print("  ");
+  //Serial.print("R= ");//printing name
+  //Serial.print(red);//printing RED color frequency
+  //Serial.print("  ");
   delay(100);
   
   // Setting Green filtered photodiodes to be read
@@ -39,11 +41,11 @@ void loop() {
   digitalWrite(S3,HIGH);
   // Reading the output frequency
   green = pulseIn(sensorOut, LOW);
-  green = map(green, 20, 32, 255, 0);
+  green = map(green, 121, 277, 255, 0);
   // Printing the value on the serial monitor
-  Serial.print("G= ");//printing name
-  Serial.print(green);//printing RED color frequency
-  Serial.print("  ");
+  //Serial.print("G= ");//printing name
+  //Serial.print(green);//printing RED color frequency
+  //Serial.print("  ");
   delay(100);
   
   // Setting Blue filtered photodiodes to be read
@@ -51,10 +53,23 @@ void loop() {
   digitalWrite(S3,HIGH);
   // Reading the output frequency
   blue = pulseIn(sensorOut, LOW);
-  blue = map(blue, 8, 40, 255, 0);
+  blue = map(blue, 59, 378, 255, 0);
   // Printing the value on the serial monitor
-  Serial.print("B= ");//printing name
-  Serial.print(blue);//printing RED color frequency
+  //Serial.print("B= ");//printing name
+  //Serial.print(blue);//printing RED color frequency
+  //Serial.println("  ");
+  
+  total = red + blue + green;
+  if(total > 150 && double(red+green)/total >= 0.70 && double(green) / total > 0.38) {
+    Serial.print("Detect Yellow House");
+  }
+  else if(total > 150 && double(red+blue)/total >= 0.75 && double(blue) / total > 0.40){
+    Serial.print("Detect Red House");
+  }
+  else {
+    Serial.print("Nothing read");
+  }
   Serial.println("  ");
+  
   delay(100);
 }

@@ -12,6 +12,7 @@
 
 #define ROWS 6
 #define COLS 6
+char terrain_map[6][6];
 
 SR04 sr04 = SR04(ECHO_PIN,TRIG_PIN);
 long a;
@@ -32,12 +33,12 @@ void GoToWallEdge() {
   //Go to a wall edge code
 }
 
-void ExploreTerrain(char terrain_map[ROWS][COLS]) {
+void ExploreTerrain() {
   //Explore terrain and update the terrain map
+  terrain_map[0][0] = '1';
 }
 
 void loop() {
-  char terrain_map[6][6];
   GoToWallEdge();
-  ExploreTerrain(terrain_map);  
+  ExploreTerrain();  
 }
