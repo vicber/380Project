@@ -10,9 +10,6 @@
 #define TRIG_PIN 7
 #define ECHO_PIN 6
 
-#define ROWS 6
-#define COLS 6
-
 //Colour Sensor Stuff
 #define S0 4
 #define S1 5
@@ -22,6 +19,9 @@
 
 //Flame & Thermal Sensor
 #define FLAME 8
+
+#define ROWS 6
+#define COLS 6
 
 //Hall Effect Sensor
 const int hallPin = 12;     // the number of the hall effect sensor pin
@@ -34,9 +34,17 @@ int blue = 0;
 int green = 0;
 int totalRGB = 0;
 
+long encoderDist = 0;
+
+//Ultrasonic Sensor
 SR04 sr04 = SR04(ECHO_PIN,TRIG_PIN);
 long a;
+
 char terrain_map[6][6];
+char directions[] = {'N', 'W', 'S', 'E'};
+int curr_direction_index = 0; //start facing north
+int curr_row = 5;
+int curr_col = 2;
 
 void setup() {
   Serial.begin(9600);
@@ -68,6 +76,29 @@ void setup() {
 
 bool ReachWall(){
   return true;
+}
+
+void Move_Forward() {
+  digitalWrite(DIR_A_M1, HIGH);
+  digitalWrite(DIR_A_M2, HIGH);
+  digitalWrite(DIR_B_M1, LOW);
+  digitalWrite(DIR_B_M2, LOW);
+}
+
+void Stop_Motors() {
+  digitalWrite(DIR_A_M1, LOW);
+  digitalWrite(DIR_A_M2, LOW);
+  digitalWrite(DIR_B_M1, LOW);
+  digitalWrite(DIR_B_M2, LOW);  
+}
+
+void Turn_CW() {
+  digitalWrite(DIR_A_M1, LOW);
+  digitalWrite(DIR_A_M2, LOW);
+  digitalWrite(DIR_B_M1, HIGH);
+  digitalWrite(DIR_B_M2, HIGH);
+  //TODO: adjust this to use magnetometer
+  delay(2000); 
 }
 
 bool DetectMagnet() {
@@ -104,7 +135,7 @@ void ReadColour() {
   totalRGB = red + blue + green;
 }
 
-void HandleObject() {
+void Handle_Object() {
   ReadColour();
 
   if(totalRGB > 150 && double(red+green)/totalRGB >= 0.70 && double(green) / totalRGB > 0.38) {
@@ -124,57 +155,101 @@ void HandleObject() {
   }
 }
 
-void GoToWallEdge() {
-  while(1) {
-    //move forward
-    digitalWrite(DIR_A_M1, HIGH);
-    digitalWrite(DIR_A_M2, HIGH);
-    digitalWrite(DIR_B_M1, LOW);
-    digitalWrite(DIR_B_M2, LOW);
-  
-    a=sr04.Distance();
-    while(a > 5) {
-      a=sr04.Distance();
-      delay(100);
-    }
-    
-    if(ReachWall()) {
-      //turn CCW
-      digitalWrite(DIR_A_M1, LOW);
-      delay(2000);
-      return;
-    }
-    else {
-      HandleObject();
-      if(!DetectMagnet()) {
-        //back up to last tile
-        digitalWrite(DIR_A_M1, LOW);
-        digitalWrite(DIR_A_M2, LOW);
-        digitalWrite(DIR_B_M1, HIGH);
-        digitalWrite(DIR_B_M2, HIGH);
-
-        delay(1000);
-        
-        //CCW
-        digitalWrite(DIR_A_M1, LOW);
-        digitalWrite(DIR_A_M2, HIGH);
-        digitalWrite(DIR_B_M1, LOW);
-        digitalWrite(DIR_B_M2, LOW);
-        
-        delay(2000);
-      }
-    }
-  }
+void GetEncoderLength() {
+  encoderDist = 5;
 }
 
 void ExploreTerrain() {
-  //Explore terrain and update the terrain map
-  terrain_map[0][0] = '1';
+  /*
+   * Explore terrain and update the terrain map
+   * 1 is a normal tile
+  */
+  Move_Forward();
+  GetEncoderLength();
+  a=sr04.Distance();
+  if(encoderDist >= 5) {
+    Stop_Motors();
+    char dir = directions[curr_direction_index];
+    if(dir == 'N') {
+      if(curr_row >= 0) {
+        curr_row--;
+      }
+      else {
+        //error, or ran into a wall
+      }
+    }
+    else if(dir == 'W') {
+      if(curr_col >= 0) {
+        curr_col--;
+      }
+      else {
+        //error, or ran into a wall
+      }
+    }
+    else if(dir == 'S') {
+      if(dir == 'S') {
+        if(curr_row < 5) {
+          curr_row++;
+        }
+        else {
+          //error, or ran into a wall
+        }
+      }  
+    }
+    else if(dir == 'E') {
+      if(curr_col < 5) {
+        curr_col++;
+      }
+      else {
+        //error, or ran into a wall
+      }      
+    }
+
+    if(DetectMagnet()) {
+      terrain_map[curr_row][curr_col] = 'F';
+      //Handle_Object
+    }
+    else {
+      terrain_map[curr_row][curr_col] = '1';  
+    }
+
+    //Do we need to handle object to the right?
+    if(curr_col < 5 && terrain_map[curr_row][curr_col + 1] == '0') {
+      Turn_CW();
+      curr_direction_index += 3;
+      Stop_Motors();
+    }
+
+    //TODO: Change search direction if needed, i.e. if the outter layer has been searched now search the inner layer
+  }
+  else if(a < 5) {
+    //if a wall
+    if(digitalRead(FLAME)==LOW && !(totalRGB > 150 && double(red+blue)/totalRGB >= 0.75 && double(blue) / totalRGB > 0.40)
+    && !(totalRGB > 150 && double(red+green)/totalRGB >= 0.70 && double(green) / totalRGB > 0.38)) {
+      //wall
+      //back up
+      //turn CCW
+    }
+    else {
+      Handle_Object();
+      //back up
+      //turn CCW
+    }
+  }
 }
 
 void loop() {
   digitalWrite(ENABLE_M1, HIGH);
   digitalWrite(ENABLE_M2, HIGH);
-  GoToWallEdge();
-  ExploreTerrain();  
+
+  // initialize map to be unknown/unvisited
+  for(int i = 0; i < 6; ++i) {
+    for(int j = 0; j < 6; ++j) {
+      terrain_map[i][j] = '0';
+    }
+  }
+
+  //Record starting position
+  terrain_map[curr_row][curr_col] = '1';
+  ExploreTerrain();
 }
