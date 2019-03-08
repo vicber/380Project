@@ -1,4 +1,5 @@
-#define FLAME 8
+/*The flame sensor has to use analog instead of digital*/
+#define FLAME A7
 #define LED 10
 
 /*
@@ -8,7 +9,8 @@
  * positive side of the sensor goes to the pin8
  * free side of the resistor goes to ground
  */
- 
+
+int flameReading = 0;
 void setup() {
   Serial.begin(9600);
   
@@ -17,11 +19,15 @@ void setup() {
 }
 
 void loop() {
-
+  flameReading = analogRead(FLAME);
+/*
   if(digitalRead(FLAME)==LOW){
     digitalWrite(LED, LOW); 
   }
   else if(digitalRead(FLAME)==HIGH){
     digitalWrite(LED, HIGH); 
-  }
+  }*/
+
+  Serial.println(flameReading);
+  delay(20);
 }
