@@ -1,9 +1,25 @@
+/*
+// TCS230 color recognition sensor 
+// Sensor connection pins to Arduino are shown in comments
+
+Color Sensor      Arduino
+-----------      --------
+ VCC               5V
+ GND               GND
+ s0                4
+ s1                5
+ s2                6
+ s3                7
+ OUT               8
+ OE                GND
+*/
+
 #define S0 4
 #define S1 5
 #define S2 6
 #define S3 7
 #define sensorOut 8
-// Vin 3.3V 
+// Vin 5V 
 int red = 0;
 int blue = 0;
 int green = 0;
@@ -19,7 +35,7 @@ void setup() {
 
   // Setting frequency-scaling to 20%
   digitalWrite(S0,HIGH);
-  digitalWrite(S1,HIGH);
+  digitalWrite(S1,LOW);
 
   Serial.begin(9600);
 }
@@ -29,11 +45,11 @@ void loop() {
   digitalWrite(S3,LOW);
   // Reading the output frequency
   red = pulseIn(sensorOut, LOW);
-  red = map(red, 60, 146, 255, 0);
+  red = map(red, 230, 640, 255, 0);
   // Printing the value on the serial monitor
-  //Serial.print("R= ");//printing name
-  //Serial.print(red);//printing RED color frequency
-  //Serial.print("  ");
+  Serial.print("R= ");//printing name
+  Serial.print(red);//printing RED color frequency
+  Serial.print("  ");
   delay(100);
   
   // Setting Green filtered photodiodes to be read
@@ -41,11 +57,11 @@ void loop() {
   digitalWrite(S3,HIGH);
   // Reading the output frequency
   green = pulseIn(sensorOut, LOW);
-  green = map(green, 121, 277, 255, 0);
+  green = map(green, 430, 1090,255, 0);
   // Printing the value on the serial monitor
-  //Serial.print("G= ");//printing name
-  //Serial.print(green);//printing RED color frequency
-  //Serial.print("  ");
+  Serial.print("G= ");//printing name
+  Serial.print(green);//printing RED color frequency
+  Serial.print("  ");
   delay(100);
   
   // Setting Blue filtered photodiodes to be read
@@ -53,12 +69,13 @@ void loop() {
   digitalWrite(S3,HIGH);
   // Reading the output frequency
   blue = pulseIn(sensorOut, LOW);
-  blue = map(blue, 59, 378, 255, 0);
+  blue = map(blue, 200, 1132, 255, 0);
   // Printing the value on the serial monitor
-  //Serial.print("B= ");//printing name
-  //Serial.print(blue);//printing RED color frequency
-  //Serial.println("  ");
-  
+  Serial.print("B= ");//printing name
+  Serial.print(blue);//printing RED color frequency
+  Serial.println("  ");
+
+  /*
   total = red + blue + green;
   if(total > 150 && double(red+green)/total >= 0.70 && double(green) / total > 0.38) {
     Serial.print("Detect Yellow House");
@@ -69,7 +86,7 @@ void loop() {
   else {
     Serial.print("Nothing read");
   }
-  Serial.println("  ");
+  Serial.println("  ");*/
   
   delay(100);
 }
