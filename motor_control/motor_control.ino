@@ -21,7 +21,7 @@ void setup() {
   pinMode(DIR_A_M2, OUTPUT);
   pinMode(DIR_B_M2, OUTPUT);
 
-  speed = min_fwd_speed; // TESTING
+  speed = min_fwd_speed;
 
   // SUBJECT TO CHANGE...
   // Min speed for moving forwards: 100
