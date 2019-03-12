@@ -18,6 +18,12 @@
 #define S2 6
 #define S3 7
 #define sensorOut 8
+const int loRed = 146;
+const int hiRed = 60;
+const int loBlue = 59; 
+const int hiBlue = 378;
+const int loGreen = 277;
+const int hiGreen = 121; 
 
 //Flame
 #define FLAME 8
@@ -195,26 +201,25 @@ bool DetectMagnet() {
 }
 
 void ReadColour() {
-  // BRITT: Maybe add all these number values as global constants instead of hardcoded values?
   // Setting red filtered photodiodes to be read
   digitalWrite(S2,LOW);
   digitalWrite(S3,LOW);
   red = pulseIn(sensorOut, LOW);
-  red = map(red, 60, 146, 255, 0);
+  red = map(red, hiRed, loRed, 255, 0);
   delay(100);
   
   // Setting Green filtered photodiodes to be read
   digitalWrite(S2,HIGH);
   digitalWrite(S3,HIGH);
   green = pulseIn(sensorOut, LOW);
-  green = map(green, 121, 277, 255, 0);
+  green = map(green, hiGreen, loGreen, 255, 0);
   delay(100);
   
   // Setting Blue filtered photodiodes to be read
   digitalWrite(S2,LOW);
   digitalWrite(S3,HIGH);
   blue = pulseIn(sensorOut, LOW);
-  blue = map(blue, 59, 378, 255, 0);
+  blue = map(blue, hiBlue, loBlue, 255, 0);
 
   totalRGB = red + blue + green;
 }
