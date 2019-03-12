@@ -55,6 +55,7 @@ void setup() {
   //Hall effect
   pinMode(hallPin, INPUT);
   
+  //Motors
   pinMode(ENABLE_M1, OUTPUT);
   pinMode(DIR_A_M1, OUTPUT);
   pinMode(DIR_B_M1, OUTPUT);
@@ -94,9 +95,9 @@ void Stop_Motors() {
 
 void Turn_CW() {
   digitalWrite(DIR_A_M1, LOW);
-  digitalWrite(DIR_A_M2, LOW);
+  digitalWrite(DIR_A_M2, HIGH);
   digitalWrite(DIR_B_M1, HIGH);
-  digitalWrite(DIR_B_M2, HIGH);
+  digitalWrite(DIR_B_M2, LOW);
   //TODO: adjust this to use magnetometer
   delay(2000); 
 }
@@ -112,6 +113,7 @@ bool DetectMagnet() {
 }
 
 void ReadColour() {
+  // BRITT: Maybe add all these number values as global constants instead of hardcoded values?
   // Setting red filtered photodiodes to be read
   digitalWrite(S2,LOW);
   digitalWrite(S3,LOW);
@@ -138,6 +140,7 @@ void ReadColour() {
 void Handle_Object() {
   ReadColour();
 
+  // BRITT: Maybe add all these number values as global constants instead of hardcoded values?
   if(totalRGB > 150 && double(red+green)/totalRGB >= 0.70 && double(green) / totalRGB > 0.38) {
     Serial.println("Detect Yellow House");
   }
