@@ -3,30 +3,33 @@
  * 
  */
 
+#include <stdlib.h>
+
 // ALREADY DEFINED IN MAIN ---------------------------------------------
 
 #define ROWS  6
 #define COLS  6
+#define MAX_NEIGHBOURS  4
 
 // ---------------------------------------------------------------------
 
-struct Tile {
-  double row_pos;
-  double col_pos;
+typedef struct TILE{
+  int row_pos;
+  int col_pos;
   double f;
   double g;
   double h;
-  Tile* neighbours;
+  struct TILE* neighbours[MAX_NEIGHBOURS];
   int num_neighbours;
-  Tile* previous;
-};
+  struct TILE* previous;
+}Tile;
 
 // Variables needed for search algorithm -------------------------------
 
-Tile** grid;
+Tile* grid[ROWS][COLS];
 
-Tile* openSet;
-Tile* closedSet;
+Tile* openSet[ROWS*COLS];
+Tile* closedSet[ROWS*COLS];
 int size_openSet;
 int size_closedSet;
 #define OPEN_SET_ID     0
@@ -35,7 +38,7 @@ int size_closedSet;
 Tile* start_tile;
 Tile* end_tile;
 
-Tile* shortest_path;
+Tile* shortest_path[ROWS*COLS];
 int size_shortest_path;
 
 // ---------------------------------------------------------------------
@@ -44,23 +47,45 @@ void addNeighbours(Tile* tile) {
   int row = tile->row_pos;
   int col = tile->col_pos;
   int num = 0;
+//  Serial.print(row);
+//  Serial.print(", ");
+//  Serial.print(col);
+//  Serial.println(":");
   if (row < ROWS-1){ // Not on the last row
     tile->neighbours[num] = grid[row+1][col];
+//    Serial.print(tile->neighbours[num]->row_pos);
+//    Serial.print(", ");
+//    Serial.print(tile->neighbours[num]->col_pos);
+//    Serial.print("; ");
     num++;
   }
-  if (row > 0){ // Not on the first row
+  if (row > 0){ // Not on the first row   
     tile->neighbours[num] = grid[row-1][col];
+//    Serial.print(tile->neighbours[num]->row_pos);
+//    Serial.print(", ");
+//    Serial.print(tile->neighbours[num]->col_pos);
+//    Serial.print("; ");
     num++;
   }
   if (col < COLS-1){ // Not on the last column
     tile->neighbours[num] = grid[row][col+1];
+//    Serial.print(tile->neighbours[num]->row_pos);
+//    Serial.print(", ");
+//    Serial.print(tile->neighbours[num]->col_pos);
+//    Serial.print("; ");
     num++;
   }
   if (col > 0){ // Not on the first column
     tile->neighbours[num] = grid[row][col-1];
+//    Serial.print(tile->neighbours[num]->row_pos);
+//    Serial.print(", ");
+//    Serial.print(tile->neighbours[num]->col_pos);
+//    Serial.print("; ");
     num++;
   }
   tile->num_neighbours = num;
+//  Serial.print(num);
+//  Serial.println();
 }
 
 void addToSet(int set_id, Tile* tile_to_add) {
@@ -113,11 +138,12 @@ double calcHeuristic(Tile* tile) {
 }
 
 void deallocGrid(){
-  int i;
+  int i, j;
   for(i = 0; i < ROWS; i++) {
-    free(grid[i]);
+    for(j = 0; j < COLS; j++) {
+      free(grid[i][j]);
+    }
   }
-  free(grid);
 }
 
 int inShortestPath(Tile* tile){
@@ -130,14 +156,53 @@ int inShortestPath(Tile* tile){
   return 0;
 }
 
+void printShortestPath(Tile* curr_best) {
+  int i, j;
+  size_shortest_path = 0;
+  Tile* temp = curr_best;
+  shortest_path[size_shortest_path]=temp;
+  size_shortest_path++;
+  while (temp->previous) {
+    shortest_path[size_shortest_path]=temp->previous;
+    size_shortest_path++;
+    temp = temp->previous;
+  }
+  Serial.print("END OF CURRENT PATH: ");
+  Serial.print(curr_best->row_pos);
+  Serial.print(", ");
+  Serial.println(curr_best->col_pos);
+
+  // Output to screen
+  for (i = 0; i < ROWS; i++){
+    for (j = 0; j < COLS; j++){
+      if(inShortestPath(grid[i][j])) {
+        Serial.print("* ");
+      } else if(tileInSet(OPEN_SET_ID, grid[i][j])) {
+        Serial.print("O ");
+      } else if(tileInSet(CLOSED_SET_ID, grid[i][j])) {
+        Serial.print("C ");
+      } else {
+        Serial.print("N ");
+      }
+    }
+    Serial.println();
+  }
+  Serial.println();
+  Serial.println();
+  Serial.println();
+}
+
 void FindShortestPath(int start_row, int start_col, int end_row, int end_col) {
   // Initialization ----------------------------------------------------
   int i, j;
 
   // Initialize grid
-  grid = (Tile**)malloc(sizeof(Tile*) * ROWS);
   for(i = 0; i < ROWS; i++){
-    grid[i] = (Tile*)malloc(sizeof(Tile) * COLS);
+    for(j = 0; j < COLS; j++) {
+      grid[i][j]=(Tile*)malloc(sizeof(Tile));
+    }
+  }
+  for(i = 0; i < ROWS; i++){
     for(j = 0; j < COLS; j++) {
       grid[i][j]->row_pos = i;
       grid[i][j]->col_pos = j;
@@ -173,16 +238,18 @@ void FindShortestPath(int start_row, int start_col, int end_row, int end_col) {
     Tile* curr_best = openSet[curr_best_index];
     if(curr_best == end_tile) {
       // We reached the end!!!
+      printShortestPath(curr_best);
       deallocGrid();
+      Serial.println("DONE!!!");
       return;
     }
     removeFromSet(OPEN_SET_ID, curr_best_index);
     addToSet(CLOSED_SET_ID, curr_best);
     
-    for(i = 0; i < current->num_neighbours; i++) {
-      Tile* neighbour = current->neighbours[i];
+    for(i = 0; i < curr_best->num_neighbours; i++) {
+      Tile* neighbour = curr_best->neighbours[i];
       if(!tileInSet(CLOSED_SET_ID, neighbour)) {
-        double temp_g = current->g + 1;
+        double temp_g = curr_best->g + 1;
         if(tileInSet(OPEN_SET_ID, neighbour)) {
           if(temp_g < neighbour->g) {
             neighbour->g = temp_g;
@@ -193,38 +260,15 @@ void FindShortestPath(int start_row, int start_col, int end_row, int end_col) {
         }
         neighbour->h = calcHeuristic(neighbour);
         neighbour->f = neighbour->g + neighbour->h;
-        neighbour->previous = current;
-        
+        neighbour->previous = curr_best;
       }
     }
-    size_shortest_path = 0;
-    Tile* temp = current;
-    while (temp->previous) {
-      shortest_path[size_shortest_path]=temp;
-      size_shortest_path++;
-      temp = temp->previous;
-    }
-
-    // Output to screen
-    Serial.print("[2J"); // Clear screen command
-    for (i = 0; i < ROWS; i++){
-      for (j = 0; j < COLS; j++){
-        if(inShortestPath(grid[i][j])) {
-          Serial.print("P ");
-        } else if(tileInSet(OPEN_SET_ID, grid[i][j])) {
-          Serial.print("O ");
-        } else if(tileInSet(CLOSED_SET_ID, grid[i][j])) {
-          Serial.print("C ");
-        } else {
-          Serial.print("N ");
-        }
-      }
-      Serial.println();
-    }
-    delay(5000);
+    printShortestPath(curr_best);
+    delay(1000);
   }
   // No solution, blocked!
   deallocGrid();
+  Serial.println("No solution!!!");
   return;
   // -------------------------------------------------------------------
 }
@@ -234,5 +278,6 @@ void setup() {
 }
 
 void loop() {
-  FindShortestPath(0,0,5,5);
+  FindShortestPath(0,0,3,5);
+  while(1){}
 }

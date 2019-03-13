@@ -356,16 +356,21 @@ void ExploreTerrain() {
   }
 }
 
-struct Tile {
-  double row_pos;
-  double col_pos;
-  double f;
-  double g;
-  double h;
-  Tile* neighbours;
-  int num_neighbours;
-  Tile* previous;
-};
+//#ifndef TILE_STRUCT
+//#define TILE_STRUCT
+//
+//struct Tile {
+//  double row_pos;
+//  double col_pos;
+//  double f;
+//  double g;
+//  double h;
+//  Tile* neighbours;
+//  int num_neighbours;
+//  Tile* previous;
+//};
+//
+//#endif
 
 // Variables needed for search algorithm -------------------------------
 
