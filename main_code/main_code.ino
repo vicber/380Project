@@ -172,7 +172,7 @@ void Turn_CCW() {
   digitalWrite(DIR_A_M1, HIGH);
   digitalWrite(DIR_A_M2, LOW);
   digitalWrite(DIR_B_M1, LOW);
-  digitalWrite(DIR_B_M2, LOW);
+  digitalWrite(DIR_B_M2, HIGH);
   //TODO: adjust this to use magnetometer
   delay(2000); 
   Stop_Motors();

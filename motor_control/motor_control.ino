@@ -74,7 +74,7 @@ void loop() {
   digitalWrite(DIR_B_M1, LOW);
   digitalWrite(DIR_B_M2, HIGH);
 
-  delay(1000);
+  delay(1350);
 
   speed = min_fwd_speed;
 
@@ -86,5 +86,5 @@ void loop() {
   digitalWrite(DIR_B_M1, LOW);
   digitalWrite(DIR_B_M2, LOW);
 
-  delay(1500);
+  delay(1000);
 }

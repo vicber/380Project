@@ -10,6 +10,17 @@
 #define ROWS  6
 #define COLS  6
 
+char directions[] = {'N', 'W', 'S', 'E'};
+int curr_direction_index = 2; //start facing south
+
+#define ENABLE_M1 3
+#define DIR_A_M1 4
+#define DIR_B_M1 5
+
+#define ENABLE_M2 11
+#define DIR_A_M2 12
+#define DIR_B_M2 13
+
 // ---------------------------------------------------------------------
 
 #define MAX_NEIGHBOURS  4
@@ -49,49 +60,31 @@ int obstacles[NUM_OBSTACLES][2];
 
 // ---------------------------------------------------------------------
 
+const int min_fwd_speed = 220;
+const int min_turn_speed = 210;
+int speed;
+
 void addNeighbours(Tile* tile) {
   int row = tile->row_pos;
   int col = tile->col_pos;
   int num = 0;
-//  Serial.print(row);
-//  Serial.print(", ");
-//  Serial.print(col);
-//  Serial.println(":");
   if (row < ROWS-1){ // Not on the last row
     tile->neighbours[num] = grid[row+1][col];
-//    Serial.print(tile->neighbours[num]->row_pos);
-//    Serial.print(", ");
-//    Serial.print(tile->neighbours[num]->col_pos);
-//    Serial.print("; ");
     num++;
   }
   if (row > 0){ // Not on the first row   
     tile->neighbours[num] = grid[row-1][col];
-//    Serial.print(tile->neighbours[num]->row_pos);
-//    Serial.print(", ");
-//    Serial.print(tile->neighbours[num]->col_pos);
-//    Serial.print("; ");
     num++;
   }
   if (col < COLS-1){ // Not on the last column
     tile->neighbours[num] = grid[row][col+1];
-//    Serial.print(tile->neighbours[num]->row_pos);
-//    Serial.print(", ");
-//    Serial.print(tile->neighbours[num]->col_pos);
-//    Serial.print("; ");
     num++;
   }
   if (col > 0){ // Not on the first column
     tile->neighbours[num] = grid[row][col-1];
-//    Serial.print(tile->neighbours[num]->row_pos);
-//    Serial.print(", ");
-//    Serial.print(tile->neighbours[num]->col_pos);
-//    Serial.print("; ");
     num++;
   }
   tile->num_neighbours = num;
-//  Serial.print(num);
-//  Serial.println();
 }
 
 void addToSet(int set_id, Tile* tile_to_add) {
@@ -172,7 +165,7 @@ void initObstacles(){
   // CONSIDER: start and end should not be obstacles in order for the path to make sense and have a solution
 }
 
-void printShortestPath(Tile* curr_best) {
+void determineShortestPath(Tile* curr_best) {
   int i, j;
   size_shortest_path = 0;
   Tile* temp = curr_best;
@@ -183,10 +176,14 @@ void printShortestPath(Tile* curr_best) {
     size_shortest_path++;
     temp = temp->previous;
   }
-  Serial.print("END OF CURRENT PATH: ");
-  Serial.print(curr_best->row_pos);
-  Serial.print(", ");
-  Serial.println(curr_best->col_pos);
+  Serial.print("PATH: ");
+  for (i = size_shortest_path-1; i >= 0; i--) {
+    Serial.print(shortest_path[i]->row_pos);
+    Serial.print(", ");
+    Serial.print(shortest_path[i]->col_pos);
+    Serial.print("; ");
+  }
+  Serial.println();
 
   // Output to screen
   for (i = 0; i < ROWS; i++){
@@ -232,6 +229,7 @@ void FindShortestPath(int start_row, int start_col, int end_row, int end_col) {
       grid[i][j]->is_obstacle = 0;
     }
   }
+  
   initObstacles();
 
   // Initialize open and closed set sizes
@@ -258,7 +256,7 @@ void FindShortestPath(int start_row, int start_col, int end_row, int end_col) {
     Tile* curr_best = openSet[curr_best_index];
     if(curr_best == end_tile) {
       // We reached the end!!!
-      printShortestPath(curr_best);
+      determineShortestPath(curr_best);
       deallocGrid();
       Serial.println("DONE!!!");
       return;
@@ -283,8 +281,6 @@ void FindShortestPath(int start_row, int start_col, int end_row, int end_col) {
         neighbour->previous = curr_best;
       }
     }
-    printShortestPath(curr_best);
-    delay(750);
   }
   // No solution, blocked!
   deallocGrid();
@@ -293,8 +289,98 @@ void FindShortestPath(int start_row, int start_col, int end_row, int end_col) {
   // -------------------------------------------------------------------
 }
 
+void StopMotors() {
+  digitalWrite(DIR_A_M1, LOW);
+  digitalWrite(DIR_A_M2, LOW);
+  digitalWrite(DIR_B_M1, LOW);
+  digitalWrite(DIR_B_M2, LOW);
+}
+
+void Move_Forward(int num_tiles) {
+  speed = min_fwd_speed;
+  analogWrite(ENABLE_M1, speed);
+  analogWrite(ENABLE_M2, speed);
+
+  digitalWrite(DIR_A_M1, HIGH);
+  digitalWrite(DIR_A_M2, HIGH);
+  digitalWrite(DIR_B_M1, LOW);
+  digitalWrite(DIR_B_M2, LOW);
+  
+  delay(1000 * num_tiles); // Temporary, might need to change time value
+
+  StopMotors();
+}
+
+void Turn_CCW(int num_turns) {
+  speed = min_turn_speed;
+  analogWrite(ENABLE_M1, speed);
+  analogWrite(ENABLE_M2, speed);
+
+  digitalWrite(DIR_A_M1, HIGH);
+  digitalWrite(DIR_A_M2, LOW);
+  digitalWrite(DIR_B_M1, LOW);
+  digitalWrite(DIR_B_M2, HIGH);
+  
+  delay(1350 * num_turns); // Temporary, might need to change time value
+  
+  StopMotors();
+}
+
+void fixOrientation(Tile* current_tile, Tile* next_tile) {
+  int i;
+  int num_90_deg_turns = 0;
+  int curr_row = current_tile->row_pos;
+  int curr_col = current_tile->col_pos;
+  int next_row = next_tile->row_pos;
+  int next_col = next_tile->col_pos;
+  int new_dir_index = 0; // 0: N, 1: W, 2: S, 3: E
+  
+  if (curr_row-next_row == 1) {
+    // Need to go N
+    new_dir_index = 0;
+  } else if (curr_col-next_row == 1) {
+    // Need to go W
+    new_dir_index = 1;
+  } else if (curr_row-next_row == -1) {
+    //Need to go S
+    new_dir_index = 2;
+  } else {
+    // Need to go E
+    new_dir_index = 3;
+  }
+  
+  if (new_dir_index - curr_direction_index == 0) {
+    // No need to fix orientation, already in correct orientation!
+    return;
+  } else if (new_dir_index - curr_direction_index > 0) {
+      num_90_deg_turns = new_dir_index - curr_direction_index;
+  } else {
+      num_90_deg_turns = (4 - curr_direction_index - new_dir_index);
+  }
+
+  Turn_CCW(num_90_deg_turns);
+  curr_direction_index = new_dir_index;
+  
+  return;
+}
+
+void GoThroughShortestPath() {
+  Tile* curr_tile_in_path = shortest_path[size_shortest_path-1];
+  while(curr_tile_in_path != shortest_path[0]) { // May need to change end condition
+    fixOrientation(curr_tile_in_path, curr_tile_in_path->previous);
+    Move_Forward(1);
+    curr_tile_in_path = curr_tile_in_path->previous;
+  }
+}
+
 void setup() {
   Serial.begin(9600);
+  
+  pinMode(DIR_A_M1, OUTPUT);
+  pinMode(DIR_B_M1, OUTPUT);
+
+  pinMode(DIR_A_M2, OUTPUT);
+  pinMode(DIR_B_M2, OUTPUT);
 }
 
 void loop() {
@@ -308,5 +394,6 @@ void loop() {
   obstacles[2][1] = 4;
   
   FindShortestPath(0,0,5,5);
+  // GoThroughShortestPath();
   while(1){}
 }
