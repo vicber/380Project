@@ -9,9 +9,11 @@
 
 #define ROWS  6
 #define COLS  6
-#define MAX_NEIGHBOURS  4
 
 // ---------------------------------------------------------------------
+
+#define MAX_NEIGHBOURS  4
+#define NUM_OBSTACLES   3
 
 typedef struct TILE{
   int row_pos;
@@ -22,6 +24,7 @@ typedef struct TILE{
   struct TILE* neighbours[MAX_NEIGHBOURS];
   int num_neighbours;
   struct TILE* previous;
+  int is_obstacle;
 }Tile;
 
 // Variables needed for search algorithm -------------------------------
@@ -40,6 +43,9 @@ Tile* end_tile;
 
 Tile* shortest_path[ROWS*COLS];
 int size_shortest_path;
+
+// For each obstacle, track row and column
+int obstacles[NUM_OBSTACLES][2];
 
 // ---------------------------------------------------------------------
 
@@ -156,6 +162,16 @@ int inShortestPath(Tile* tile){
   return 0;
 }
 
+void initObstacles(){
+  int i, row, col;
+  for(i = 0; i < NUM_OBSTACLES; i++) {
+    row = obstacles[i][0];
+    col = obstacles[i][1]; 
+    grid[row][col]->is_obstacle = 1;
+  }
+  // CONSIDER: start and end should not be obstacles in order for the path to make sense and have a solution
+}
+
 void printShortestPath(Tile* curr_best) {
   int i, j;
   size_shortest_path = 0;
@@ -175,7 +191,9 @@ void printShortestPath(Tile* curr_best) {
   // Output to screen
   for (i = 0; i < ROWS; i++){
     for (j = 0; j < COLS; j++){
-      if(inShortestPath(grid[i][j])) {
+      if(grid[i][j]->is_obstacle) {
+        Serial.print("X ");
+      } else if(inShortestPath(grid[i][j])) {
         Serial.print("* ");
       } else if(tileInSet(OPEN_SET_ID, grid[i][j])) {
         Serial.print("O ");
@@ -211,8 +229,10 @@ void FindShortestPath(int start_row, int start_col, int end_row, int end_col) {
       grid[i][j]->h = 0;
       addNeighbours(grid[i][j]);
       grid[i][j]->previous = NULL;
+      grid[i][j]->is_obstacle = 0;
     }
   }
+  initObstacles();
 
   // Initialize open and closed set sizes
   size_openSet = 0;
@@ -248,7 +268,7 @@ void FindShortestPath(int start_row, int start_col, int end_row, int end_col) {
     
     for(i = 0; i < curr_best->num_neighbours; i++) {
       Tile* neighbour = curr_best->neighbours[i];
-      if(!tileInSet(CLOSED_SET_ID, neighbour)) {
+      if(!tileInSet(CLOSED_SET_ID, neighbour) && !neighbour->is_obstacle) {
         double temp_g = curr_best->g + 1;
         if(tileInSet(OPEN_SET_ID, neighbour)) {
           if(temp_g < neighbour->g) {
@@ -264,7 +284,7 @@ void FindShortestPath(int start_row, int start_col, int end_row, int end_col) {
       }
     }
     printShortestPath(curr_best);
-    delay(1000);
+    delay(750);
   }
   // No solution, blocked!
   deallocGrid();
@@ -278,6 +298,15 @@ void setup() {
 }
 
 void loop() {
-  FindShortestPath(0,0,3,5);
+  // Just for testing...
+  // Should be defined more efficiently before A* search algorithm runs
+  obstacles[0][0] = 0;
+  obstacles[0][1] = 2;
+  obstacles[1][0] = 1;
+  obstacles[1][1] = 2;
+  obstacles[2][0] = 2;
+  obstacles[2][1] = 4;
+  
+  FindShortestPath(0,0,5,5);
   while(1){}
 }
