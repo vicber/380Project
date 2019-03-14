@@ -23,7 +23,12 @@ const int hiRed = 60;
 const int loBlue = 59; 
 const int hiBlue = 378;
 const int loGreen = 277;
-const int hiGreen = 121; 
+const int hiGreen = 121;
+const int minRGB = 150; //used to ensure that there is enough RGB value to sensibly use percentage method
+const double yellowHouse_RG = 0.70; //percent of RG over RGB
+const double yellowHouse_G = 0.38;  //percent of G over RGB
+const double redHouse_RB = 0.75; //percent of RB over RGB
+const double redHouse_B = 0.40;  //percent of B over RGB
 
 //Flame
 #define FLAME 8
@@ -227,13 +232,13 @@ void ReadColour() {
 void Handle_Object() {
   ReadColour();
 
-  // BRITT: Maybe add all these number values as global constants instead of hardcoded values?
   // BRITT: Once task is complete, set corresponding flag in task_status[] (i.e. task_status[COLLECT_FOOD] = 1)
   // BRITT: Also, these should be updating terrain_map[][] and task_location[][] accordingly.
-  if(totalRGB > 150 && double(red+green)/totalRGB >= 0.70 && double(green) / totalRGB > 0.38) {
+  
+  if(totalRGB > minRGB && double(red+green)/totalRGB >= yellowHouse_RG && double(green) / totalRGB > yellowHouse_G) {
     Serial.println("Detect Yellow House");
   }
-  else if(totalRGB > 150 && double(red+blue)/totalRGB >= 0.75 && double(blue) / totalRGB > 0.40){
+  else if(totalRGB > minRGB && double(red+blue)/totalRGB >= redHouse_RB && double(blue) / totalRGB > redHouse_B){
     Serial.println("Detect Red House");
   }
   else if(digitalRead(FLAME)==HIGH) {
@@ -252,6 +257,9 @@ void ExploreTerrain() {
    * Explore terrain and update the terrain map
    * 1 is a normal tile
   */
+
+  //TODO: Correctly circle around edges, decrementing by one once a layer has been completely visited
+  
   Serial.println("Explore Terrain Start Loop");
 
   while(!FoundEverything()) {
