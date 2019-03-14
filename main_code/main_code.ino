@@ -240,12 +240,14 @@ void Handle_Object() {
     Serial.println("Detect Yellow House: Found lost person");
     foundPerson = true;
     task_status[FIND_LOST_PERSON] = 1;
-    terrain_map[cur_row][cur_col] = 'P'; 
+    terrain_map[cur_row][cur_col] = 'P';
+    task_location[FIND_LOST_PERSON] = {cur_row, cur_col};
   }
   else if(totalRGB > minRGB && double(red+blue)/totalRGB >= redHouse_RB && double(blue) / totalRGB > redHouse_B){
     Serial.println("Detect Red House: Group of Survivors");
     foundGroup = true;
     terrain_map[cur_row][cur_col] = 'G';
+    task_location[FEED_SURVIVORS] = {cur_row, cur_col};
     if(task_status[COLLECT_FOOD]) {
       task_status[FEED_SURVIVORS] = 1;
     }
@@ -257,12 +259,14 @@ void Handle_Object() {
     Serial.println("Detect Lit Candle");
     foundCandle = true;
     terrain_map[cur_row][cur_col] = 'C';
+    task_location[FIRE_OFF] = {cur_row, cur_col};
     //TODO: Algorithm to ensure fire is put off
     task_status[FIRE_OFF] = 1;
   }
   else if(DetectMagnet()) {
     Serial.println("Detect Food");
     terrain_map[cur_row][cur_col] = 'F';
+    task_location[COLLECT_FOOD] = {cur_row, cur_col};
     foundFood = true;
     task_status[COLLECT_FOOD] = 1;
   }
