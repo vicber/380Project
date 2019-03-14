@@ -231,21 +231,30 @@ void ReadColour() {
 
 void Handle_Object() {
   ReadColour();
-
-  // BRITT: Once task is complete, set corresponding flag in task_status[] (i.e. task_status[COLLECT_FOOD] = 1)
+  
   // BRITT: Also, these should be updating terrain_map[][] and task_location[][] accordingly.
   
   if(totalRGB > minRGB && double(red+green)/totalRGB >= yellowHouse_RG && double(green) / totalRGB > yellowHouse_G) {
-    Serial.println("Detect Yellow House");
+    Serial.println("Detect Yellow House: Found lost person");
+    task_status[FIND_LOST_PERSON] = 1;
   }
   else if(totalRGB > minRGB && double(red+blue)/totalRGB >= redHouse_RB && double(blue) / totalRGB > redHouse_B){
-    Serial.println("Detect Red House");
+    Serial.println("Detect Red House: Group of Survivors");
+    if(task_status[COLLECT_FOOD]) {
+      task_status[FEED_SURVIVORS] = 1;
+    }
+    else {
+      Serial.println("Need to collect food before feeding survivors.");
+    }
   }
   else if(digitalRead(FLAME)==HIGH) {
     Serial.println("Detect Lit Candle");
+    //TODO: Algorithm to ensure fire is put off
+    task_status[FIRE_OFF] = 1;
   }
   else if(DetectMagnet()) {
     Serial.println("Detect Food");
+    task_status[COLLECT_FOOD] = 1;
   }
   else {
     Serial.println("Nothing read");
