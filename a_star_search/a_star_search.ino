@@ -4,6 +4,7 @@
  */
 
 #include <stdlib.h>
+#include <Wire.h>
 
 // ALREADY DEFINED IN MAIN ---------------------------------------------
 
@@ -22,6 +23,11 @@ int curr_direction_index = 2; //start facing south
 #define DIR_B_M2 13
 
 // ---------------------------------------------------------------------
+
+#define MAG_ADDR 0x0E
+#define X 3
+#define Y 7
+#define Z 5
 
 #define MAX_NEIGHBOURS  4
 #define NUM_OBSTACLES   3
@@ -375,6 +381,7 @@ void GoThroughShortestPath() {
 
 void setup() {
   Serial.begin(9600);
+  Wire.begin();
   
   pinMode(DIR_A_M1, OUTPUT);
   pinMode(DIR_B_M1, OUTPUT);
