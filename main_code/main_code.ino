@@ -64,6 +64,8 @@ char directions[] = {'N', 'W', 'S', 'E'};
 int curr_direction_index = 0; //start facing north
 int curr_row = 5;
 int curr_col = 2;
+
+//Flags whether or not an objective has been located or not, used in the Explore_Terrain algorithm
 bool foundFood = false;
 bool foundCandle = false;
 bool foundPerson = false;
@@ -229,33 +231,112 @@ void ReadColour() {
   totalRGB = red + blue + green;
 }
 
+bool Detect_Yellow_House() {
+  ReadColour();
+  if(totalRGB > minRGB && double(red+green)/totalRGB >= yellowHouse_RG && double(green) / totalRGB > yellowHouse_G) {
+    return true;
+  }
+  else {
+    return false;
+  }
+}
+
+bool Detect_Red_House() {
+  ReadColour();
+  if(totalRGB > minRGB && double(red+blue)/totalRGB >= redHouse_RB && double(blue) / totalRGB > redHouse_B) {
+    return true;
+  }
+  else {
+    return false;
+  }  
+}
+
 void Handle_Object() {
   ReadColour();
-
-  // BRITT: Once task is complete, set corresponding flag in task_status[] (i.e. task_status[COLLECT_FOOD] = 1)
+  
   // BRITT: Also, these should be updating terrain_map[][] and task_location[][] accordingly.
   
-  if(totalRGB > minRGB && double(red+green)/totalRGB >= yellowHouse_RG && double(green) / totalRGB > yellowHouse_G) {
-    Serial.println("Detect Yellow House");
+  if(Detect_Yellow_House()) {
+    Serial.println("Detect Yellow House: Found lost person");
+    foundPerson = true;
+    task_status[FIND_LOST_PERSON] = 1;
+    terrain_map[cur_row][cur_col] = 'P';
+    task_location[FIND_LOST_PERSON] = {cur_row, cur_col};
   }
-  else if(totalRGB > minRGB && double(red+blue)/totalRGB >= redHouse_RB && double(blue) / totalRGB > redHouse_B){
-    Serial.println("Detect Red House");
+  else if(Detect_Red_House()){
+    Serial.println("Detect Red House: Group of Survivors");
+    foundGroup = true;
+    terrain_map[cur_row][cur_col] = 'G';
+    task_location[FEED_SURVIVORS] = {cur_row, cur_col};
+    if(task_status[COLLECT_FOOD]) {
+      task_status[FEED_SURVIVORS] = 1;
+    }
+    else {
+      Serial.println("Need to collect food before feeding survivors.");
+    }
   }
   else if(digitalRead(FLAME)==HIGH) {
     Serial.println("Detect Lit Candle");
+    foundCandle = true;
+    terrain_map[cur_row][cur_col] = 'C';
+    task_location[FIRE_OFF] = {cur_row, cur_col};
+    //TODO: Algorithm to ensure fire is put off
+    task_status[FIRE_OFF] = 1;
   }
   else if(DetectMagnet()) {
     Serial.println("Detect Food");
+    terrain_map[cur_row][cur_col] = 'F';
+    task_location[COLLECT_FOOD] = {cur_row, cur_col};
+    foundFood = true;
+    task_status[COLLECT_FOOD] = 1;
   }
   else {
     Serial.println("Nothing read");
   }
 }
 
+void Update_Position() {
+  char dir = directions[curr_direction_index];
+  if(dir == 'N') {
+    if(curr_row >= 0) {
+      curr_row--;
+    }
+    else {
+      //error, or ran into a wall
+    }
+  }
+  else if(dir == 'W') {
+    if(curr_col >= 0) {
+      curr_col--;
+    }
+    else {
+      //error, or ran into a wall
+    }
+  }
+  else if(dir == 'S') {
+    if(dir == 'S') {
+      if(curr_row < 5) {
+        curr_row++;
+      }
+      else {
+        //error, or ran into a wall
+      }
+    }  
+  }
+  else if(dir == 'E') {
+    if(curr_col < 5) {
+      curr_col++;
+    }
+    else {
+      //error, or ran into a wall
+    }      
+  }
+}
+
 void ExploreTerrain() {
   /*
    * Explore terrain and update the terrain map
-   * 1 is a normal tile
+   * '1' is a normal tile
   */
 
   //TODO: Correctly circle around edges, decrementing by one once a layer has been completely visited
@@ -288,41 +369,7 @@ void ExploreTerrain() {
   
     //Case if we just moved a tile
     if(encoderCount < numTicksBtwnTiles) {
-      char dir = directions[curr_direction_index];
-      if(dir == 'N') {
-        if(curr_row >= 0) {
-          curr_row--;
-        }
-        else {
-          //error, or ran into a wall
-        }
-      }
-      else if(dir == 'W') {
-        if(curr_col >= 0) {
-          curr_col--;
-        }
-        else {
-          //error, or ran into a wall
-        }
-      }
-      else if(dir == 'S') {
-        if(dir == 'S') {
-          if(curr_row < 5) {
-            curr_row++;
-          }
-          else {
-            //error, or ran into a wall
-          }
-        }  
-      }
-      else if(dir == 'E') {
-        if(curr_col < 5) {
-          curr_col++;
-        }
-        else {
-          //error, or ran into a wall
-        }      
-      }
+      Update_Position();
   
       //Detect food?
       if(DetectMagnet()) {
@@ -341,7 +388,7 @@ void ExploreTerrain() {
         Stop_Motors();
       }
   
-      //TODO: Change search direction if needed, i.e. if the outter layer has been searched now search the inner layer
+      //TODO: Change search direction if needed, i.e. if the outer layer has been searched now search the inner layer
     }
   
     //Case if we ran into something
@@ -356,6 +403,7 @@ void ExploreTerrain() {
       }
       else {
         //if an object
+        //TODO: Should update current position so that terrain_map is correctly updated within the Handle_Object() function
         Handle_Object();
         BackupOneTile();
         Turn_CCW();
