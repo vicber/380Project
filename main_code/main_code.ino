@@ -231,19 +231,39 @@ void ReadColour() {
   totalRGB = red + blue + green;
 }
 
+bool Detect_Yellow_House() {
+  ReadColour();
+  if(totalRGB > minRGB && double(red+green)/totalRGB >= yellowHouse_RG && double(green) / totalRGB > yellowHouse_G) {
+    return true;
+  }
+  else {
+    return false;
+  }
+}
+
+bool Detect_Red_House() {
+  ReadColour();
+  if(totalRGB > minRGB && double(red+blue)/totalRGB >= redHouse_RB && double(blue) / totalRGB > redHouse_B) {
+    return true;
+  }
+  else {
+    return false;
+  }  
+}
+
 void Handle_Object() {
   ReadColour();
   
   // BRITT: Also, these should be updating terrain_map[][] and task_location[][] accordingly.
   
-  if(totalRGB > minRGB && double(red+green)/totalRGB >= yellowHouse_RG && double(green) / totalRGB > yellowHouse_G) {
+  if(Detect_Yellow_House()) {
     Serial.println("Detect Yellow House: Found lost person");
     foundPerson = true;
     task_status[FIND_LOST_PERSON] = 1;
     terrain_map[cur_row][cur_col] = 'P';
     task_location[FIND_LOST_PERSON] = {cur_row, cur_col};
   }
-  else if(totalRGB > minRGB && double(red+blue)/totalRGB >= redHouse_RB && double(blue) / totalRGB > redHouse_B){
+  else if(Detect_Red_House()){
     Serial.println("Detect Red House: Group of Survivors");
     foundGroup = true;
     terrain_map[cur_row][cur_col] = 'G';
