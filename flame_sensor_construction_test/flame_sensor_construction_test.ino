@@ -3,6 +3,7 @@
 #define RED_PIN 7
 #define GREEN_PIN 8
 #define BLUE_PIN 9
+#define TESTLED 13
 
 int DISPLAY_TIME = 10;  // In milliseconds
 
@@ -10,7 +11,7 @@ int DISPLAY_TIME = 10;  // In milliseconds
  * Setup Info
  * positive side of the sensor goes to the resistor
  * negative side of the sensor goes to the 5V
- * positive side of the sensor goes to the pin8
+ * positive side of the sensor goes to the pinA7
  * free side of the resistor goes to ground
  */
 
@@ -23,14 +24,16 @@ void setup() {
   pinMode(RED_PIN, OUTPUT);
   pinMode(GREEN_PIN, OUTPUT);
   pinMode(BLUE_PIN, OUTPUT);  
+  pinMode(TESTLED,OUTPUT);
 
-  mainColors();
+  //mainColors();
 
-  showSpectrum();
+  //showSpectrum();
 
   digitalWrite(RED_PIN, LOW);
   digitalWrite(GREEN_PIN, LOW);
   digitalWrite(BLUE_PIN, LOW);
+  digitalWrite(TESTLED,LOW);
 }
 
 void loop() {
@@ -41,13 +44,15 @@ void loop() {
   */
 
   if(flameReading==0){
+    digitalWrite(TESTLED,LOW);
     digitalWrite(RED_PIN, LOW);
     digitalWrite(GREEN_PIN, LOW);
     digitalWrite(BLUE_PIN, LOW);
   }
   else if(flameReading>0){
     //mainColors();
-    showSpectrum();
+    //showSpectrum();
+    digitalWrite(TESTLED,HIGH);
   }
 }
 
