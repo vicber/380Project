@@ -13,8 +13,6 @@
 SR04 sr04 = SR04(ECHO_PIN,TRIG_PIN);
 long a;
 
-// TESTING!!!
-
 const int min_fwd_speed = 220;
 const int min_turn_speed = 210;
 int speed;
@@ -80,14 +78,6 @@ void loop() {
   digitalWrite(DIR_A_M2, LOW);
   digitalWrite(DIR_B_M1, LOW);
   digitalWrite(DIR_B_M2, HIGH);
-
-  /*
-   * 
-   * 
-   * 
-   * 
-   * TESTING
-   */
 
   delay(1200);
 
