@@ -1,5 +1,8 @@
 /*The flame sensor has to use analog instead of digital*/
-#define FLAME A7
+#define FLAME_1 A7
+#define FLAME_2 A8
+#define TESTLED 13
+
 #define RED_PIN 7
 #define GREEN_PIN 8
 #define BLUE_PIN 9
@@ -14,40 +17,48 @@ int DISPLAY_TIME = 10;  // In milliseconds
  * free side of the resistor goes to ground
  */
 
-int flameReading = 0;
+int flameReading_1 = 0, flameReading_2 = 0;
 void setup() {
   Serial.begin(9600);
   
-  pinMode(FLAME, INPUT);
+  pinMode(FLAME_1, INPUT);
+  pinMode(FLAME_2, INPUT);
+  pinMode(TESTLED,OUTPUT);
 
   pinMode(RED_PIN, OUTPUT);
   pinMode(GREEN_PIN, OUTPUT);
   pinMode(BLUE_PIN, OUTPUT);  
 
-  mainColors();
+  //mainColors();
 
-  showSpectrum();
+  //showSpectrum();
 
   digitalWrite(RED_PIN, LOW);
   digitalWrite(GREEN_PIN, LOW);
   digitalWrite(BLUE_PIN, LOW);
+  digitalWrite(TESTLED,LOW);
 }
 
 void loop() {
-  flameReading = analogRead(FLAME);
-  Serial.println(flameReading);
+  flameReading_1 = analogRead(FLAME_1);
+  flameReading_2 = analogRead(FLAME_2);
+  Serial.print("sensor1 ");Serial.println(flameReading_1);
+  Serial.print("sensor2 ");Serial.println(flameReading_2);
   /*918~919 is the baseline when the flame sensor starts to detetect the flame
   * Threshold is 918
   */
 
-  if(flameReading==0){
+  if(flameReading_1==0 && flameReading_2 == 0){
+    digitalWrite(TESTLED,LOW);
+    
     digitalWrite(RED_PIN, LOW);
     digitalWrite(GREEN_PIN, LOW);
     digitalWrite(BLUE_PIN, LOW);
   }
-  else if(flameReading>0){
+  else if(flameReading_1>0 || flameReading_2>0){
     //mainColors();
-    showSpectrum();
+    //showSpectrum();
+    digitalWrite(TESTLED,HIGH);
   }
 }
 

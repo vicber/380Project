@@ -16,13 +16,15 @@ double yaw_read;
 double prev_yaw, curr_yaw; // To determine if we have a yaw jump
 
 const int min_fwd_speed = 220;
-const int min_turn_speed = 200;
+const int min_turn_speed = 210;
 int speed;
 
 //#define MAG_X_OFFSET  1929.64
 //#define MAG_Y_OFFSET  -1821.27
-#define MAG_X_OFFSET  1112.73
-#define MAG_Y_OFFSET  -1782.96
+//#define MAG_X_OFFSET  1112.73
+//#define MAG_Y_OFFSET  -1782.96
+#define MAG_X_OFFSET  1148.93
+#define MAG_Y_OFFSET  -1859.91
 
 void config_magnetometer(void)
 {
@@ -141,6 +143,10 @@ void loop() {
   double current_turn_angle = 0.0;
   double yaw_offset = 0.0;
 
+  speed = min_turn_speed;
+  analogWrite(ENABLE_M1, speed);
+  analogWrite(ENABLE_M2, speed);
+  
   // Turn CCW
   
   calculate_yaw();
@@ -182,44 +188,62 @@ void loop() {
 
   yaw_offset = 0.0;
 
-   // Turn CW
-  
-  calculate_yaw();
-  init_turn_angle = yaw_read;
-  current_turn_angle = yaw_read;
-  prev_yaw = yaw_read;
-  
+  // Go straight
+
+  speed = min_fwd_speed;
+  analogWrite(ENABLE_M1, speed);
+  analogWrite(ENABLE_M2, speed);
+
   digitalWrite(DIR_A_M1, LOW);
-  digitalWrite(DIR_A_M2, HIGH);
-  digitalWrite(DIR_B_M1, HIGH);
-  digitalWrite(DIR_B_M2, LOW);
-  
-  Serial.println(current_turn_angle);
-  
-  while(abs(current_turn_angle - init_turn_angle) < 90) {
-    calculate_yaw();
-    curr_yaw = yaw_read + yaw_offset;
-    int yaw_jumped = detectYawJump();
-    if (yaw_jumped) {
-      if (yaw_jumped == 1) {
-        // Went from 0 to 360
-        yaw_offset = -360;
-      } else if (yaw_jumped == 2) {
-        // Went from 360 to 0
-        yaw_offset = 360;
-      }
-    }
-    current_turn_angle = yaw_read + yaw_offset;
-    prev_yaw = curr_yaw;
-    Serial.println(current_turn_angle);
-    delay(50);
-  };
-
   digitalWrite(DIR_A_M2, LOW);
-  digitalWrite(DIR_B_M1, LOW);
-  
-  Serial.println("TURNED 90 DEGREES CW");
-  delay(2000);
+  digitalWrite(DIR_B_M1, HIGH);
+  digitalWrite(DIR_B_M2, HIGH);
 
-  yaw_offset = 0.0;
+  delay(3000);
+
+  digitalWrite(DIR_B_M1, LOW);
+  digitalWrite(DIR_B_M2, LOW);
+
+  delay(2000);
+  
+//  // Turn CW
+//  
+//  calculate_yaw();
+//  init_turn_angle = yaw_read;
+//  current_turn_angle = yaw_read;
+//  prev_yaw = yaw_read;
+//  
+//  digitalWrite(DIR_A_M1, LOW);
+//  digitalWrite(DIR_A_M2, HIGH);
+//  digitalWrite(DIR_B_M1, HIGH);
+//  digitalWrite(DIR_B_M2, LOW);
+//  
+//  Serial.println(current_turn_angle);
+//  
+//  while(abs(current_turn_angle - init_turn_angle) < 90) {
+//    calculate_yaw();
+//    curr_yaw = yaw_read + yaw_offset;
+//    int yaw_jumped = detectYawJump();
+//    if (yaw_jumped) {
+//      if (yaw_jumped == 1) {
+//        // Went from 0 to 360
+//        yaw_offset = -360;
+//      } else if (yaw_jumped == 2) {
+//        // Went from 360 to 0
+//        yaw_offset = 360;
+//      }
+//    }
+//    current_turn_angle = yaw_read + yaw_offset;
+//    prev_yaw = curr_yaw;
+//    Serial.println(current_turn_angle);
+//    delay(50);
+//  };
+//
+//  digitalWrite(DIR_A_M2, LOW);
+//  digitalWrite(DIR_B_M1, LOW);
+//  
+//  Serial.println("TURNED 90 DEGREES CW");
+//  delay(2000);
+//
+//  yaw_offset = 0.0;
 }
