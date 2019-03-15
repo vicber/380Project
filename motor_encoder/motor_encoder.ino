@@ -1,5 +1,13 @@
 #define MOTOR_ENC_PIN_A   22
-#define MOTOR_ENC_PIN_B   23
+#define MOTOR_ENC_PIN_B   24
+
+#define ENABLE_M1 3
+#define DIR_A_M1 4
+#define DIR_B_M1 5
+
+#define ENABLE_M2 11
+#define DIR_A_M2 12
+#define DIR_B_M2 13
 
 int last_enc_val_A, last_enc_val_B, enc_val_A, enc_val_B;
 int curr_count;
@@ -11,6 +19,10 @@ int curr_count;
 
 // 45 counts is approximately equal to 360 degrees
 
+const int min_fwd_speed = 220;
+const int min_turn_speed = 210;
+int speed;
+
 void setup() {
   Serial.begin(9600);
   pinMode(MOTOR_ENC_PIN_A, INPUT);
@@ -18,9 +30,25 @@ void setup() {
   last_enc_val_A = digitalRead(MOTOR_ENC_PIN_A);
   last_enc_val_B = digitalRead(MOTOR_ENC_PIN_B);
   curr_count = 0;
+
+  pinMode(DIR_A_M1, OUTPUT);
+  pinMode(DIR_B_M1, OUTPUT);
+
+  pinMode(DIR_A_M2, OUTPUT);
+  pinMode(DIR_B_M2, OUTPUT);
+
+  speed = min_fwd_speed;
 }
 
 void loop() {
+  analogWrite(ENABLE_M1, speed); // From 0 - 255?
+  analogWrite(ENABLE_M2, speed); // From 0 - 255?
+  
+  digitalWrite(DIR_A_M1, LOW);
+  digitalWrite(DIR_A_M2, LOW);
+  digitalWrite(DIR_B_M1, HIGH);
+  digitalWrite(DIR_B_M2, HIGH);
+  
   int diff_enc_val_A, diff_enc_val_B;
   
   enc_val_A = digitalRead(MOTOR_ENC_PIN_A);

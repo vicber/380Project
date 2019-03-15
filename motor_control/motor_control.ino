@@ -17,7 +17,9 @@ const int min_fwd_speed = 220;
 const int min_turn_speed = 210;
 int speed;
 
-const int min_fwd_dist = 15;
+int US_count = 0;
+
+const int min_fwd_dist = 22;
 
 void setup() {
   Serial.begin(9600);
@@ -51,18 +53,21 @@ void loop() {
   analogWrite(ENABLE_M1, speed); // From 0 - 255?
   analogWrite(ENABLE_M2, speed); // From 0 - 255?
   
-  digitalWrite(DIR_A_M1, HIGH);
-  digitalWrite(DIR_A_M2, HIGH);
-  digitalWrite(DIR_B_M1, LOW);
-  digitalWrite(DIR_B_M2, LOW);
+  digitalWrite(DIR_A_M1, LOW);
+  digitalWrite(DIR_A_M2, LOW);
+  digitalWrite(DIR_B_M1, HIGH);
+  digitalWrite(DIR_B_M2, HIGH);
 
-  a=sr04.Distance();
-  while(a > min_fwd_dist) {
+  while(US_count < 3) {
     a=sr04.Distance();
+    if (a < min_fwd_dist) {
+      US_count++;
+    }
     //Serial.print(a);
     //Serial.println("cm");
     delay(100);
   }
+  US_count = 0;
 
   speed = min_turn_speed;
 
@@ -74,17 +79,17 @@ void loop() {
   digitalWrite(DIR_B_M1, LOW);
   digitalWrite(DIR_B_M2, HIGH);
 
-  delay(1350);
+  delay(1200);
 
   speed = min_fwd_speed;
 
   analogWrite(ENABLE_M1, speed); // From 0 - 255?
   analogWrite(ENABLE_M2, speed); // From 0 - 255?
   
-  digitalWrite(DIR_A_M1, HIGH);
-  digitalWrite(DIR_A_M2, HIGH);
-  digitalWrite(DIR_B_M1, LOW);
-  digitalWrite(DIR_B_M2, LOW);
+  digitalWrite(DIR_A_M1, LOW);
+  digitalWrite(DIR_A_M2, LOW);
+  digitalWrite(DIR_B_M1, HIGH);
+  digitalWrite(DIR_B_M2, HIGH);
 
   delay(1000);
 }
