@@ -254,8 +254,6 @@ bool Detect_Red_House() {
 void Handle_Object() {
   ReadColour();
   
-  // BRITT: Also, these should be updating terrain_map[][] and task_location[][] accordingly.
-  
   if(Detect_Yellow_House()) {
     Serial.println("Detect Yellow House: Found lost person");
     foundPerson = true;
@@ -295,8 +293,15 @@ void Handle_Object() {
   }
 }
 
-void Update_Position() {
+void Update_Position(bool forward) {
   char dir = directions[curr_direction_index];
+  if(!forward) {
+    //toggle directions if going backwards
+    if(dir == 'N') dir = 'S';
+    else if(dir == 'S') dir == 'N';
+    else if(dir == 'W') dir == 'E';
+    else if(dir == 'E') dir == 'W';
+  }
   if(dir == 'N') {
     if(curr_row >= 0) {
       curr_row--;
@@ -369,7 +374,7 @@ void ExploreTerrain() {
   
     //Case if we just moved a tile
     if(encoderCount < numTicksBtwnTiles) {
-      Update_Position();
+      Update_Position(true);
   
       //Detect food?
       if(DetectMagnet()) {
@@ -403,9 +408,10 @@ void ExploreTerrain() {
       }
       else {
         //if an object
-        //TODO: Should update current position so that terrain_map is correctly updated within the Handle_Object() function
+        Update_Position(true);
         Handle_Object();
         BackupOneTile();
+        Update_Position(false); //revert the prior update position
         Turn_CCW();
       }
     }
