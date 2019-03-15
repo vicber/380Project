@@ -258,14 +258,16 @@ void Handle_Object() {
     Serial.println("Detect Yellow House: Found lost person");
     foundPerson = true;
     task_status[FIND_LOST_PERSON] = 1;
-    terrain_map[cur_row][cur_col] = 'P';
-    task_location[FIND_LOST_PERSON] = {cur_row, cur_col};
+    terrain_map[curr_row][curr_col] = 'P';
+    task_location[FIND_LOST_PERSON][0] = curr_row;
+    task_location[FIND_LOST_PERSON][1] = curr_col;
   }
   else if(Detect_Red_House()){
     Serial.println("Detect Red House: Group of Survivors");
     foundGroup = true;
-    terrain_map[cur_row][cur_col] = 'G';
-    task_location[FEED_SURVIVORS] = {cur_row, cur_col};
+    terrain_map[curr_row][curr_col] = 'G';
+    task_location[FEED_SURVIVORS][0] = curr_row;
+    task_location[FEED_SURVIVORS][1] = curr_col;
     if(task_status[COLLECT_FOOD]) {
       task_status[FEED_SURVIVORS] = 1;
     }
@@ -276,15 +278,17 @@ void Handle_Object() {
   else if(digitalRead(FLAME)==HIGH) {
     Serial.println("Detect Lit Candle");
     foundCandle = true;
-    terrain_map[cur_row][cur_col] = 'C';
-    task_location[FIRE_OFF] = {cur_row, cur_col};
+    terrain_map[curr_row][curr_col] = 'C';
+    task_location[FIRE_OFF][0] = curr_row;
+    task_location[FIRE_OFF][1] = curr_col;
     //TODO: Algorithm to ensure fire is put off
     task_status[FIRE_OFF] = 1;
   }
   else if(DetectMagnet()) {
     Serial.println("Detect Food");
-    terrain_map[cur_row][cur_col] = 'F';
-    task_location[COLLECT_FOOD] = {cur_row, cur_col};
+    terrain_map[curr_row][curr_col] = 'F';
+    task_location[COLLECT_FOOD][0] = curr_row;
+    task_location[COLLECT_FOOD][1] = curr_col;
     foundFood = true;
     task_status[COLLECT_FOOD] = 1;
   }
@@ -338,16 +342,34 @@ void Update_Position(bool forward) {
   }
 }
 
+bool Layer_Searched(int n){
+  /*
+   * Check if layer is completely visited
+   * There are 3 layers in total
+   * n=0, outter layer
+   * n=2, inner layer
+   */
+   
+   for(int i = n; i < 6 - n; ++i) {
+    if(terrain_map[n][i] == '0') return false; //check top edge
+    if(terrain_map[i][n] == '0') return false; //check left edge
+    if(terrain_map[i][5 - n] == '0') return false; //check right edge
+    if(terrain_map[5 - n][i] == '0') return false; //check bottom edge
+   }
+   return true;
+}
+
 void ExploreTerrain() {
   /*
    * Explore terrain and update the terrain map
+   * This code assumes you are already at an edge
    * '1' is a normal tile
   */
-
+  
   //TODO: Correctly circle around edges, decrementing by one once a layer has been completely visited
   
   Serial.println("Explore Terrain Start Loop");
-
+  int curr_search_layer  = 0; //0 is the outter layer, 2 is the most inner layer
   while(!FoundEverything()) {
     Move_Forward();
     encoderCount = 0;
@@ -414,6 +436,12 @@ void ExploreTerrain() {
         Update_Position(false); //revert the prior update position
         Turn_CCW();
       }
+
+      //TODO: Change search direction if needed, i.e. if the outer layer has been searched now search the inner layer
+      if(Layer_Searched(curr_search_layer)) {
+        curr_search_layer++;
+      }
+      
     }
   }
 }
@@ -644,6 +672,9 @@ void loop() {
   //Record starting position
   terrain_map[curr_row][curr_col] = '1';
 
+  //TODO: Go to wall edge and correctly orient the robot
+  //GoToWallEdge();
+  
   //Locate all of the objectives within the grid
   ExploreTerrain();
 
