@@ -251,6 +251,14 @@ bool Detect_Red_House() {
   }  
 }
 
+void Put_Out_Fire() {
+  Move_Forward();
+  while(digitalRead(FLAME)==HIGH) {}
+  delay(200); //go a bit more in
+  Stop_Motors();
+
+}
+
 void Handle_Object() {
   ReadColour();
   
@@ -281,7 +289,7 @@ void Handle_Object() {
     terrain_map[curr_row][curr_col] = 'C';
     task_location[FIRE_OFF][0] = curr_row;
     task_location[FIRE_OFF][1] = curr_col;
-    //TODO: Algorithm to ensure fire is put off
+    Put_Out_Fire();
     task_status[FIRE_OFF] = 1;
   }
   else if(DetectMagnet()) {
@@ -671,9 +679,6 @@ void loop() {
 
   //Record starting position
   terrain_map[curr_row][curr_col] = '1';
-
-  //TODO: Go to wall edge and correctly orient the robot
-  //GoToWallEdge();
   
   //Locate all of the objectives within the grid
   ExploreTerrain();
