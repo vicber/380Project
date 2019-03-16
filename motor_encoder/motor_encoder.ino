@@ -25,6 +25,8 @@ int curr_count;
 const int min_fwd_speed = 220;
 const int min_turn_speed = 210;
 int speed;
+int curr_dir = 1;
+// 1: Forward, 0: Backward
 
 void setup() {
   Serial.begin(9600);
@@ -47,10 +49,37 @@ void loop() {
   analogWrite(ENABLE_M1, speed); // From 0 - 255?
   analogWrite(ENABLE_M2, speed); // From 0 - 255?
   
-  digitalWrite(DIR_A_M1, LOW);
-  digitalWrite(DIR_A_M2, LOW);
-  digitalWrite(DIR_B_M1, HIGH);
-  digitalWrite(DIR_B_M2, HIGH);
+  if (curr_dir == 1) {
+    if (curr_count < 2000) {
+      // Keep going forwards
+      digitalWrite(DIR_A_M1, LOW);
+      digitalWrite(DIR_A_M2, LOW);
+      digitalWrite(DIR_B_M1, HIGH);
+      digitalWrite(DIR_B_M2, HIGH);
+    } else {
+      // Go backwards now
+      digitalWrite(DIR_A_M1, HIGH);
+      digitalWrite(DIR_A_M2, HIGH);
+      digitalWrite(DIR_B_M1, LOW);
+      digitalWrite(DIR_B_M2, LOW);
+      curr_dir = 0;
+    }
+  } else {
+    if (curr_count > -2000) {
+      // Keep going backwards
+      digitalWrite(DIR_A_M1, HIGH);
+      digitalWrite(DIR_A_M2, HIGH);
+      digitalWrite(DIR_B_M1, LOW);
+      digitalWrite(DIR_B_M2, LOW);
+    } else {
+      // Go forwards now
+      digitalWrite(DIR_A_M1, LOW);
+      digitalWrite(DIR_A_M2, LOW);
+      digitalWrite(DIR_B_M1, HIGH);
+      digitalWrite(DIR_B_M2, HIGH);
+      curr_dir = 1;
+    }
+  }
   
   int diff_enc_val_A, diff_enc_val_B;
   
