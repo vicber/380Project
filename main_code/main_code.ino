@@ -256,7 +256,6 @@ void Put_Out_Fire() {
   while(digitalRead(FLAME)==HIGH) {}
   delay(200); //go a bit more in
   Stop_Motors();
-
 }
 
 void Handle_Object() {
@@ -302,6 +301,7 @@ void Handle_Object() {
   }
   else {
     Serial.println("Nothing read");
+    terrain_map[curr_row][curr_col] = '1';
   }
 }
 
@@ -423,7 +423,11 @@ void ExploreTerrain() {
         Stop_Motors();
       }
   
-      //TODO: Change search direction if needed, i.e. if the outer layer has been searched now search the inner layer
+      //Change search direction if needed, i.e. if the outer layer has been searched now search the inner layer
+      if(Layer_Searched(curr_search_layer)) {
+        curr_search_layer++;
+        Turn_CCW();
+      }
     }
   
     //Case if we ran into something
@@ -433,7 +437,9 @@ void ExploreTerrain() {
       if(digitalRead(FLAME)==LOW && !(totalRGB > 150 && double(red+blue)/totalRGB >= 0.75 && double(blue) / totalRGB > 0.40)
       && !(totalRGB > 150 && double(red+green)/totalRGB >= 0.70 && double(green) / totalRGB > 0.38)) {
         //if a wall
+        //TODO: Instead of backing up one tile, back up the amount we went forward, for better accuracy
         BackupOneTile();
+        
         Turn_CCW();
       }
       else {
@@ -445,9 +451,10 @@ void ExploreTerrain() {
         Turn_CCW();
       }
 
-      //TODO: Change search direction if needed, i.e. if the outer layer has been searched now search the inner layer
+      //Change search direction if needed, i.e. if the outer layer has been searched now search the inner layer
       if(Layer_Searched(curr_search_layer)) {
         curr_search_layer++;
+        Turn_CCW();
       }
       
     }
