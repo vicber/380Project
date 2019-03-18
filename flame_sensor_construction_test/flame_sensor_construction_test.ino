@@ -28,8 +28,7 @@ void setup() {
 
   pinMode(RED_PIN, OUTPUT);
   pinMode(GREEN_PIN, OUTPUT);
-  pinMode(BLUE_PIN, OUTPUT);  
-  pinMode(TESTLED,OUTPUT);
+  pinMode(BLUE_PIN, OUTPUT);
 
   //mainColors();
 
@@ -44,25 +43,21 @@ void setup() {
 void loop() {
   flameReading_1 = analogRead(FLAME_1);
   flameReading_2 = analogRead(FLAME_2);
-  Serial.print("sensor1 ");Serial.println(flameReading_1);
-  Serial.print("sensor2 ");Serial.println(flameReading_2);
+  Serial.print("sensor1 ");
+  Serial.print(flameReading_1);
+  Serial.print("\tsensor2 ");
+  Serial.println(flameReading_2);
   /*918~919 is the baseline when the flame sensor starts to detetect the flame
   * Threshold is 918
   */
 
-<<<<<<< HEAD
-  if(flameReading==0){
-    digitalWrite(TESTLED,LOW);
-=======
   if(flameReading_1==0 && flameReading_2 == 0){
     digitalWrite(TESTLED,LOW);
-    
->>>>>>> 140d5e7ac7d36d7553ce79002a8ec7d0023f62e0
     digitalWrite(RED_PIN, LOW);
     digitalWrite(GREEN_PIN, LOW);
     digitalWrite(BLUE_PIN, LOW);
   }
-  else if(flameReading_1>0 || flameReading_2>0){
+  else {
     //mainColors();
     //showSpectrum();
     digitalWrite(TESTLED,HIGH);

@@ -45,7 +45,7 @@ void loop() {
   digitalWrite(S3,LOW);
   // Reading the output frequency
   red = pulseIn(sensorOut, LOW);
-  red = map(red, 230, 640, 255, 0);
+  // red = map(red, 230, 640, 255, 0);
   // Printing the value on the serial monitor
   Serial.print("R= ");//printing name
   Serial.print(red);//printing RED color frequency
@@ -57,7 +57,7 @@ void loop() {
   digitalWrite(S3,HIGH);
   // Reading the output frequency
   green = pulseIn(sensorOut, LOW);
-  green = map(green, 430, 1090,255, 0);
+  // green = map(green, 430, 1090, 255, 0);
   // Printing the value on the serial monitor
   Serial.print("G= ");//printing name
   Serial.print(green);//printing RED color frequency
@@ -69,7 +69,7 @@ void loop() {
   digitalWrite(S3,HIGH);
   // Reading the output frequency
   blue = pulseIn(sensorOut, LOW);
-  blue = map(blue, 200, 1132, 255, 0);
+  // blue = map(blue, 200, 1132, 255, 0);
   // Printing the value on the serial monitor
   Serial.print("B= ");//printing name
   Serial.print(blue);//printing RED color frequency

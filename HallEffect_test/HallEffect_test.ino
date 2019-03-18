@@ -8,7 +8,7 @@ DIY Hacking
 
 // constants won't change. They're used here to set pin numbers:
 const int hallPin1 = 9;     // the number of the hall effect sensor pin
-const int hallPin2 = 8;
+const int hallPin2 = 10;
 const int ledPin =  13;     // the number of the LED pin
 // variables will change:
 int hallState1 = 0;          // variable for reading the hall sensor status
