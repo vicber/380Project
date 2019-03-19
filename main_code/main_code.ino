@@ -1,5 +1,8 @@
 #include "SR04.h"
 
+//Test LED
+#define TESTLED 13
+
 //Motors
 #define ENABLE_M1 2
 #define DIR_A_M1 3
@@ -98,6 +101,9 @@ int task_location[4][2] = {0};
 void setup() {
   Serial.begin(9600);
 
+  //TEST LED
+  pinMode(TESTLED, OUTPUT);
+  
   //Flame
   pinMode(FLAME, INPUT);
   
@@ -348,7 +354,7 @@ bool Detect_Red_House() {
 
 void Put_Out_Fire() {
   Move_Forward();
-  while(digitalRead(FLAME)==HIGH) {}
+  while(analogRead(FLAME)!=0) {}
   delay(200); //go a bit more in
   Stop_Motors();
 }
@@ -377,7 +383,7 @@ void Handle_Object() {
       Serial.println("Need to collect food before feeding survivors.");
     }
   }
-  else if(digitalRead(FLAME)==HIGH) {
+  else if(analogRead(FLAME)!=0) {
     Serial.println("Detect Lit Candle");
     foundCandle = true;
     terrain_map[curr_row][curr_col] = 'C';
@@ -515,7 +521,7 @@ void ExploreTerrain() {
     else if(ultrasonicDist < 5) {
       Serial.println("Ran into something");
       
-      if(digitalRead(FLAME)==LOW && !(totalRGB > 150 && double(red+blue)/totalRGB >= 0.75 && double(blue) / totalRGB > 0.40)
+      if(analogRead(FLAME)==0 && !(totalRGB > 150 && double(red+blue)/totalRGB >= 0.75 && double(blue) / totalRGB > 0.40)
       && !(totalRGB > 150 && double(red+green)/totalRGB >= 0.70 && double(green) / totalRGB > 0.38)) {
         //if a wall
         //TODO: Instead of backing up one tile, back up the amount we went forward, for better accuracy
