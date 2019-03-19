@@ -8,6 +8,9 @@
 #define ENABLE_M2 11
 #define DIR_A_M2 12
 #define DIR_B_M2 13
+const int min_fwd_speed = 220;
+const int min_turn_speed = 210;
+int speed;
 
 #define TRIG_PIN 7
 #define ECHO_PIN 6
@@ -34,12 +37,10 @@ const double redHouse_B = 0.40;  //percent of B over RGB
 #define FLAME 8
 
 //Encoder
-#define outputA 6
-#define outputB 7
-int encoderCount = 0; 
-const int numTicksBtwnTiles = 50; //number of encoder ticks from center of one tile to another
-int aState;
-int aLastState; 
+#define MOTOR_ENC_PIN_A   22 // DIGITAL
+#define MOTOR_ENC_PIN_B   24 // DIGITAL
+int last_enc_val_A, last_enc_val_B, enc_val_A, enc_val_B;
+int encoder_count;
 
 #define ROWS 6
 #define COLS 6
@@ -93,14 +94,19 @@ void setup() {
   //Hall effect
   pinMode(hallPin, INPUT);
   
+  //Encoders
+  pinMode(MOTOR_ENC_PIN_A, INPUT);
+  pinMode(MOTOR_ENC_PIN_B, INPUT);
+  last_enc_val_A = digitalRead(MOTOR_ENC_PIN_A);
+  last_enc_val_B = digitalRead(MOTOR_ENC_PIN_B);
+  encoder_count = 0;
+
   //Motors
-  pinMode(ENABLE_M1, OUTPUT);
   pinMode(DIR_A_M1, OUTPUT);
   pinMode(DIR_B_M1, OUTPUT);
-
-  pinMode(ENABLE_M2, OUTPUT);
   pinMode(DIR_A_M2, OUTPUT);
   pinMode(DIR_B_M2, OUTPUT);
+  speed = min_fwd_speed;
 
   //Colour Sensor
   pinMode(S0, OUTPUT);
@@ -111,25 +117,20 @@ void setup() {
   // Setting frequency-scaling to 20%
   digitalWrite(S0,HIGH);
   digitalWrite(S1,HIGH);
-
-  //Encoder
-  pinMode (outputA,INPUT);
-  pinMode (outputB,INPUT);
-  aLastState = digitalRead(outputA); // Reads the initial state of the outputA
 }
 
 bool ReachWall(){
   return true;
 }
 
-void Move_Backward() {
+void Move_Forward() {
   digitalWrite(DIR_A_M1, LOW);
   digitalWrite(DIR_A_M2, LOW);
   digitalWrite(DIR_B_M1, HIGH);
-  digitalWrite(DIR_B_M2, HIGH);  
+  digitalWrite(DIR_B_M2, HIGH);
 }
 
-void Move_Forward() {
+void Move_Backward() {
   digitalWrite(DIR_A_M1, HIGH);
   digitalWrite(DIR_A_M2, HIGH);
   digitalWrite(DIR_B_M1, LOW);
@@ -143,29 +144,74 @@ void Stop_Motors() {
   digitalWrite(DIR_B_M2, LOW);  
 }
 
+void EncoderLoop(){
+  int diff_enc_val_A, diff_enc_val_B;
+  
+  enc_val_A = digitalRead(MOTOR_ENC_PIN_A);
+  enc_val_B = digitalRead(MOTOR_ENC_PIN_B);
+  diff_enc_val_A = enc_val_A - last_enc_val_A;
+  diff_enc_val_B = enc_val_B - last_enc_val_B;
+
+
+  if (abs(diff_enc_val_A) == 1 || abs(diff_enc_val_B) == 1) {
+    // If one of the pin values changed, need to evaluate change...
+    if (diff_enc_val_A == 1) {
+      // Pin A value switched from low to high
+      if (enc_val_B == 1) {
+        // Going CW, increment the count
+        encoder_count++;
+      } else {
+        // Going CCW, decrement the count
+        encoder_count--;
+      }
+    } else if (diff_enc_val_A == -1) {
+      // Pin A value switched from high to low
+      if (enc_val_B == 0) {
+        // Going CW, increment the count
+        encoder_count++;
+      } else {
+        // Going CCW, decrement the count
+        encoder_count--;
+      }
+    } else if (diff_enc_val_B == 1) {
+      // Pin B value switched from low to high
+      if (enc_val_A == 0) {
+        // Going CW, increment the count
+        encoder_count++;
+      } else {
+        // Going CCW, decrement the count
+        encoder_count--;
+      }
+    } else {
+      // Pin B value switched from high to low
+      if (enc_val_A == 1) {
+        // Going CW, increment the count
+        encoder_count++;
+      } else {
+        // Going CCW, decrement the count
+        encoder_count--;
+      }
+    }
+  }
+  Serial.print("Encoder: ");
+  Serial.println(encoder_count);
+
+  last_enc_val_A = enc_val_A;
+  last_enc_val_B = enc_val_B;
+}
+
 void BackupOneTile() {
   Serial.println("Backing up one tile");
-  encoderCount = 0;
+  encoder_count = 0;
   Move_Backward();
-  while(encoderCount < numTicksBtwnTiles) {
-    aState = digitalRead(outputA); // Reads the "current" state of the outputA
-    // If the previous and the current state of the outputA are different, that means a Pulse has occured
-    if (aState != aLastState){     
-      // If the outputB state is different to the outputA state, that means the encoder is rotating clockwise
-      if (digitalRead(outputB) != aState) { 
-        encoderCount --;
-      } else {
-        encoderCount ++;
-      }
-      Serial.print("Position: ");
-      Serial.println(encoderCount);
-    } 
-    aLastState = aState; // Updates the previous state of the outputA with the current state
+  while(encoder_count < numTicksBtwnTiles) {
+      EncoderLoop();
   }
   Stop_Motors();
 }
 
 void Turn_CW() {
+  /*
   digitalWrite(DIR_A_M1, LOW);
   digitalWrite(DIR_A_M2, HIGH);
   digitalWrite(DIR_B_M1, HIGH);
@@ -173,15 +219,24 @@ void Turn_CW() {
   //TODO: adjust this to use magnetometer
   delay(2000); 
   Stop_Motors();
+  */
+  Serial.println("Turn_CW");
+  delay(5000); 
+  Stop_Motors();  
 }
 
 void Turn_CCW() {
+  /*
   digitalWrite(DIR_A_M1, HIGH);
   digitalWrite(DIR_A_M2, LOW);
   digitalWrite(DIR_B_M1, LOW);
   digitalWrite(DIR_B_M2, HIGH);
   //TODO: adjust this to use magnetometer
   delay(2000); 
+  Stop_Motors();
+  */
+  Serial.println("Turn_CCW");
+  delay(5000); 
   Stop_Motors();
 }
 
@@ -198,6 +253,7 @@ bool FoundEverything() {
 }
 
 bool DetectMagnet() {
+  //TODO: Hall Effect code is a toggle, so check if the value toggled from before
   hallState = digitalRead(hallPin);
   if (hallState == LOW) {     
     return true;
@@ -260,7 +316,7 @@ void Put_Out_Fire() {
 
 void Handle_Object() {
   ReadColour();
-  
+  Serial.println("Handle_Object");
   if(Detect_Yellow_House()) {
     Serial.println("Detect Yellow House: Found lost person");
     foundPerson = true;
@@ -374,36 +430,22 @@ void ExploreTerrain() {
    * '1' is a normal tile
   */
   
-  //TODO: Correctly circle around edges, decrementing by one once a layer has been completely visited
-  
   Serial.println("Explore Terrain Start Loop");
-  int curr_search_layer  = 0; //0 is the outter layer, 2 is the most inner layer
+  int curr_search_layer  = 0; //0 is the outer layer, 2 is the most inner layer
   while(!FoundEverything()) {
     Move_Forward();
-    encoderCount = 0;
+    encoder_count = 0;
     ultrasonicDist = sr04.Distance();
   
     //keep moving forward until hit objective or go to new tile
-    while(ultrasonicDist > 5 && encoderCount < numTicksBtwnTiles) {
-      aState = digitalRead(outputA); // Reads the "current" state of the outputA
-      // If the previous and the current state of the outputA are different, that means a Pulse has occured
-      if (aState != aLastState){     
-        // If the outputB state is different to the outputA state, that means the encoder is rotating clockwise
-        if (digitalRead(outputB) != aState) { 
-          encoderCount ++;
-        } else {
-          encoderCount --;
-        }
-        Serial.print("Position: ");
-        Serial.println(encoderCount);
-      } 
-      aLastState = aState; // Updates the previous state of the outputA with the current state
+    while(ultrasonicDist > 5 && encoder_count < numTicksBtwnTiles) {
+      EncoderLoop();
     }
     
     Stop_Motors();
   
     //Case if we just moved a tile
-    if(encoderCount < numTicksBtwnTiles) {
+    if(encoder_count < numTicksBtwnTiles) {
       Update_Position(true);
   
       //Detect food?
@@ -445,7 +487,7 @@ void ExploreTerrain() {
       else {
         //if an object
         Update_Position(true);
-        Handle_Object();
+        Handle_Object();        
         BackupOneTile();
         Update_Position(false); //revert the prior update position
         Turn_CCW();
@@ -460,6 +502,32 @@ void ExploreTerrain() {
     }
   }
 }
+
+void loop() {
+  // enable the motors
+  analogWrite(ENABLE_M1, speed); // From 0 - 255?
+  analogWrite(ENABLE_M2, speed); // From 0 - 255?
+
+  // initialize map to be unknown/unvisited
+  for(int i = 0; i < 6; ++i) {
+    for(int j = 0; j < 6; ++j) {
+      terrain_map[i][j] = '0';
+    }
+  }
+
+  //Record starting position
+  terrain_map[curr_row][curr_col] = '1';
+  
+  //Locate all of the objectives within the grid
+  ExploreTerrain();
+
+  //CompleteRemainingTasks();
+}
+
+
+
+
+
 
 //#ifndef TILE_STRUCT
 //#define TILE_STRUCT
@@ -478,7 +546,7 @@ void ExploreTerrain() {
 //#endif
 
 // Variables needed for search algorithm -------------------------------
-
+/*
 Tile** grid;
 
 Tile* openSet;
@@ -671,24 +739,4 @@ void CompleteRemainingTasks() {
   // Handle object
   // If all tasks are not complete, repeat process
 }
-
-void loop() {
-  // enable the motors
-  digitalWrite(ENABLE_M1, HIGH);
-  digitalWrite(ENABLE_M2, HIGH);
-
-  // initialize map to be unknown/unvisited
-  for(int i = 0; i < 6; ++i) {
-    for(int j = 0; j < 6; ++j) {
-      terrain_map[i][j] = '0';
-    }
-  }
-
-  //Record starting position
-  terrain_map[curr_row][curr_col] = '1';
-  
-  //Locate all of the objectives within the grid
-  ExploreTerrain();
-
-  CompleteRemainingTasks();
-}
+*/
