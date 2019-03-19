@@ -41,6 +41,7 @@ const double redHouse_B = 0.40;  //percent of B over RGB
 #define MOTOR_ENC_PIN_B   24 // DIGITAL
 int last_enc_val_A, last_enc_val_B, enc_val_A, enc_val_B;
 int encoder_count;
+const int numTicksBtwnTiles = 50;
 
 #define ROWS 6
 #define COLS 6
@@ -445,7 +446,7 @@ void ExploreTerrain() {
     Stop_Motors();
   
     //Case if we just moved a tile
-    if(encoder_count < numTicksBtwnTiles) {
+    if(encoder_count >= numTicksBtwnTiles) {
       Update_Position(true);
   
       //Detect food?
@@ -481,7 +482,6 @@ void ExploreTerrain() {
         //if a wall
         //TODO: Instead of backing up one tile, back up the amount we went forward, for better accuracy
         BackupOneTile();
-        
         Turn_CCW();
       }
       else {
@@ -498,7 +498,6 @@ void ExploreTerrain() {
         curr_search_layer++;
         Turn_CCW();
       }
-      
     }
   }
 }
