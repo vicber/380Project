@@ -48,9 +48,9 @@ const int numTicksBtwnTiles = 50;
 
 //Hall Effect Sensor
 const int hallPin1 = 8;     // the number of the hall effect sensor pin
-const int hallPin1 = 9;     // the number of the hall effect sensor pin
-const int hallPin1 = 10;     // the number of the hall effect sensor pin
-const int hallPin1 = 11;     // the number of the hall effect sensor pin
+const int hallPin2 = 9;     // the number of the hall effect sensor pin
+const int hallPin3 = 10;     // the number of the hall effect sensor pin
+const int hallPin4 = 11;     // the number of the hall effect sensor pin
 int hallState1 = 0;          // variable for reading the hall sensor status
 int hallState2 = 0;          // variable for reading the hall sensor status
 int hallState3 = 0;          // variable for reading the hall sensor status
@@ -102,7 +102,18 @@ void setup() {
   pinMode(FLAME, INPUT);
   
   //Hall effect
-  pinMode(hallPin, INPUT);
+  pinMode(hallPin1, INPUT);
+  pinMode(hallPin2, INPUT);
+  pinMode(hallPin3, INPUT);
+  pinMode(hallPin4, INPUT);
+  hallState1 = digitalRead(hallPin1);
+  hallState2 = digitalRead(hallPin2);
+  hallState3 = digitalRead(hallPin3);
+  hallState4 = digitalRead(hallPin4);
+  oldState1 = hallState1;
+  oldState2 = hallState2;
+  oldState3 = hallState3;
+  oldState4 = hallState4;
   
   //Encoders
   pinMode(MOTOR_ENC_PIN_A, INPUT);
