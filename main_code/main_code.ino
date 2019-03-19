@@ -1,26 +1,26 @@
 #include "SR04.h"
 
 //Motors
-#define ENABLE_M1 3
-#define DIR_A_M1 4
-#define DIR_B_M1 5
+#define ENABLE_M1 2
+#define DIR_A_M1 3
+#define DIR_B_M1 4
 
-#define ENABLE_M2 11
-#define DIR_A_M2 12
-#define DIR_B_M2 13
+#define ENABLE_M2 5
+#define DIR_A_M2 6
+#define DIR_B_M2 7
 const int min_fwd_speed = 220;
 const int min_turn_speed = 210;
 int speed;
 
-#define TRIG_PIN 7
-#define ECHO_PIN 6
+#define TRIG_PIN 12
+#define ECHO_PIN 13
 
 //Colour Sensor Stuff
-#define S0 4
-#define S1 5
-#define S2 6
-#define S3 7
-#define sensorOut 8
+#define S0 30
+#define S1 32
+#define S2 34
+#define S3 36
+#define sensorOut 28
 const int loRed = 146;
 const int hiRed = 60;
 const int loBlue = 59; 
@@ -34,7 +34,7 @@ const double redHouse_RB = 0.75; //percent of RB over RGB
 const double redHouse_B = 0.40;  //percent of B over RGB
 
 //Flame
-#define FLAME 8
+#define FLAME A7
 
 //Encoder
 #define MOTOR_ENC_PIN_A   22 // DIGITAL
@@ -47,9 +47,18 @@ const int numTicksBtwnTiles = 50;
 #define COLS 6
 
 //Hall Effect Sensor
-const int hallPin = 12;     // the number of the hall effect sensor pin
-const int ledPin =  13;     // the number of the LED pin
-int hallState = 0;          // variable for reading the hall sensor status
+const int hallPin1 = 8;     // the number of the hall effect sensor pin
+const int hallPin1 = 9;     // the number of the hall effect sensor pin
+const int hallPin1 = 10;     // the number of the hall effect sensor pin
+const int hallPin1 = 11;     // the number of the hall effect sensor pin
+int hallState1 = 0;          // variable for reading the hall sensor status
+int hallState2 = 0;          // variable for reading the hall sensor status
+int hallState3 = 0;          // variable for reading the hall sensor status
+int hallState4 = 0;          // variable for reading the hall sensor status
+int oldState1 = 0;
+int oldState2 = 0;
+int oldState3 = 0;
+int oldState4 = 0;
 
 // Vin 3.3V 
 int red = 0;
@@ -254,14 +263,32 @@ bool FoundEverything() {
 }
 
 bool DetectMagnet() {
-  //TODO: Hall Effect code is a toggle, so check if the value toggled from before
-  hallState = digitalRead(hallPin);
-  if (hallState == LOW) {     
-    return true;
-  } 
-  else {
-    return false;
+  int numDetects = 0;
+  hallState1 = digitalRead(hallPin1);
+  hallState2 = digitalRead(hallPin2);
+  hallState3 = digitalRead(hallPin3);
+  hallState4 = digitalRead(hallPin4);
+  
+  if(hallState1 != oldState1) {
+    numDetects++;
   }
+  if(hallState2 != oldState2) {
+    numDetects++;
+  }
+  if(hallState3 != oldState3) {
+    numDetects++;
+  }
+  if(hallState4 != oldState4) {
+    numDetects++;
+  }
+
+  oldState1 = hallState1;
+  oldState2 = hallState2;
+  oldState3 = hallState3;
+  oldState4 = hallState4;
+
+  if(numDetects >= 2) return true;
+  else return false;
 }
 
 void ReadColour() {
