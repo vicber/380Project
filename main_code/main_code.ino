@@ -260,12 +260,15 @@ void EncoderLoop(){
   last_enc_val_B = enc_val_B;
 }
 
-void BackupOneTile() {
-  Serial.println(" > Backing up one tile");
-  encoder_count = 0;
+void Backup(long dist) {
+  Serial.print(" > Backing up by ");
+  Serial.println(dist);
+  ultrasonic_dist = sr04.Distance();
+  long initial_ultrasonic = ultrasonic_dist;
+  
   Move_Backward();  
-  while(abs(encoder_count) < numTicksBtwnTiles) {
-      EncoderLoop();
+  while(abs(ultrasonic_dist - initial_ultrasonic) < dist) {
+    ultrasonic_dist = sr04.Distance();
   }
   Stop_Motors();
   Serial.println(" > Done backing up.");
@@ -552,25 +555,29 @@ void ExploreTerrain() {
     Move_Forward();
     encoder_count = 0;
     ultrasonic_dist = sr04.Distance();
+    long initial_ultrasonic = ultrasonic_dist;
 
     Serial.println("Moving Forward..");
     //keep moving forward until hit objective or go to new tile
-    while(ultrasonic_dist > 5 && encoder_count < numTicksBtwnTiles) {
-      EncoderLoop();
+    while(ultrasonic_dist > 5 && abs(initial_ultrasonic - ultrasonic_dist) < 30) {
+      //EncoderLoop();
       ultrasonic_dist = sr04.Distance();
     }
     
     Stop_Motors();
     
     //DEBUG
-    Serial.print("Encoder Tick: ");
-    Serial.print(encoder_count);
+    //Serial.print("Encoder Tick: ");
+    //Serial.print(encoder_count);
+    long dist_travelled = initial_ultrasonic - ultrasonic_dist;
+    Serial.print("Dist Travelled: ");
+    Serial.print(dist_travelled);
     Serial.print("  Ultrasonic: ");
     Serial.println(ultrasonic_dist);
     delay(5000);
   
     //Case if we just moved a tile
-    if(encoder_count >= numTicksBtwnTiles) {
+    if(initial_ultrasonic - ultrasonic_dist >= 30) {
       Serial.println("Moved a tile:");
       Update_Position(true);
   
@@ -610,8 +617,8 @@ void ExploreTerrain() {
       && !(totalRGB > 150 && double(red+green)/totalRGB >= 0.70 && double(green) / totalRGB > 0.38)) {
         Serial.println("Detected a wall");
         //if a wall
-        //TODO: Instead of backing up one tile, back up the amount we went forward, for better accuracy
-        BackupOneTile();
+        //Back up the amount we went forward
+        Backup(dist_travelled);
         Turn_CCW();
       }
       else {
@@ -619,7 +626,7 @@ void ExploreTerrain() {
         Serial.println("Detected an object");
         Update_Position(true);
         Handle_Object();        
-        BackupOneTile();
+        Backup(dist_travelled);
         Update_Position(false); //revert the prior update position
         Turn_CCW();
       }
@@ -638,6 +645,8 @@ void ExploreTerrain() {
   Serial.println("");
   Serial.println("");
   Serial.println("");
+
+  delay(10000);
 }
 
 void loop() {
