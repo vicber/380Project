@@ -1,77 +1,3 @@
-/*
-#define TESTLED 13
-/*Flame Sensor
- * Setup Info
- * positive side of the sensor goes to the resistor
- * negative side of the sensor goes to the 5V
- * positive side of the sensor goes to the pinA7
- * free side of the resistor goes to ground
- */
-//#define FLAME_1 A7
-//#define FLAME_2 A8
-
-/*Motor and Encoder
-* POWER CONNECTED TO 5V
-* GND JUST CONNECTED TO GROUND
-*/
-//#define MOTOR_ENC_PIN_A   22 // DIGITAL
-//#define MOTOR_ENC_PIN_B   24 // DIGITAL
-
-// All PWM pins for Motors 
-//#define ENABLE_M1 2
-//#define DIR_A_M1 3
-//#define DIR_B_M1 4
-
-//#define ENABLE_M2 5
-//#define DIR_A_M2 6
-//#define DIR_B_M2 7
-
-/*Hall Eeffect Sensor
-* VCC 5V
-*/
-//const int hallPin1 = 8;    
-//const int hallPin2 = 9;
-//const int hallPin3 = 10;
-//const int hallPin4 = 11;
-
-/*Ultrosonic Sensor
-* VCC 5V
-*/
-//#define TRIG_PIN 12
-//#define ECHO_PIN 13
- 
-/*Colour Sensor*/
-/*
-// TCS230 color recognition sensor 
-// Sensor connection pins to Arduino are shown in comments
-Color Sensor      Arduino
------------      --------
- VCC               5V
- GND               GND
- s0                4
- s1                5
- s2                6
- s3                7
- OUT               8
- OE                GND
-*/
-//#define sensorOut 28
-//#define S0 30
-//#define S1 32
-//#define S2 34
-//#define S3 3
-
-
-
-
-
-
-
-*/
-
-
-
-
 #include "SR04.h"
 
 //Test LED
@@ -148,7 +74,7 @@ int totalRGB = 0;
 
 //Ultrasonic Sensor
 SR04 sr04 = SR04(ECHO_PIN,TRIG_PIN);
-long ultrasonicDist;
+long ultrasonic_dist;
 
 char terrain_map[6][6];
 char directions[] = {'N', 'W', 'S', 'E'};
@@ -420,8 +346,14 @@ bool DetectMagnet() {
   oldState4 = hallState4;
   oldState5 = hallState5;
 
-  if(numDetects >= 1) return true;
-  else return false;
+  if(numDetects >= 1) {
+    Serial.println("Magnet Detected");
+    return true;
+  }
+  else {
+    Serial.println("No Magnet Detected");
+    return false;
+  }
 }
 
 void ReadColour() {
@@ -429,21 +361,21 @@ void ReadColour() {
   digitalWrite(S2,LOW);
   digitalWrite(S3,LOW);
   red = pulseIn(sensorOut, LOW);
-  red = map(red, hiRed, loRed, 255, 0);
+  red = map(red, loRed, hiRed, 0, 255);
   delay(100);
   
   // Setting Green filtered photodiodes to be read
   digitalWrite(S2,HIGH);
   digitalWrite(S3,HIGH);
   green = pulseIn(sensorOut, LOW);
-  green = map(green, hiGreen, loGreen, 255, 0);
+  green = map(green, loGreen, hiGreen, 0, 255);
   delay(100);
   
   // Setting Blue filtered photodiodes to be read
   digitalWrite(S2,LOW);
   digitalWrite(S3,HIGH);
   blue = pulseIn(sensorOut, LOW);
-  blue = map(blue, hiBlue, loBlue, 255, 0);
+  blue = map(blue, loBlue, hiBlue, 0, 255);
 
   totalRGB = red + blue + green;
 }
@@ -524,6 +456,12 @@ void Handle_Object() {
 
 void Update_Position(bool forward) {
   char dir = directions[curr_direction_index];
+  Serial.print(" > UPDATE_POSITION: (");
+  Serial.print(curr_row);
+  Serial.print(",");
+  Serial.print(curr_col);
+  Serial.print(") --> (");
+  
   if(!forward) {
     //toggle directions if going backwards
     if(dir == 'N') dir = 'S';
@@ -565,6 +503,11 @@ void Update_Position(bool forward) {
       //error, or ran into a wall
     }      
   }
+
+  Serial.print(curr_row);
+  Serial.print(",");
+  Serial.print(curr_col);
+  Serial.println(")");
 }
 
 bool Layer_Searched(int n){
@@ -591,25 +534,39 @@ void ExploreTerrain() {
    * '1' is a normal tile
   */
   
-  Serial.println("Explore Terrain Start Loop");
+  Serial.println("Enter Explore Terrain Algorithm");
+
+  
   int curr_search_layer  = 0; //0 is the outer layer, 2 is the most inner layer
+  
   while(!FoundEverything()) {
+    Serial.println("Explore Terrain Loop");  
     Move_Forward();
     encoder_count = 0;
-    ultrasonicDist = sr04.Distance();
+    ultrasonic_dist = sr04.Distance();
   
     //keep moving forward until hit objective or go to new tile
-    while(ultrasonicDist > 5 && encoder_count < numTicksBtwnTiles) {
+    while(ultrasonic_dist > 5 && encoder_count < numTicksBtwnTiles) {
       EncoderLoop();
+      ultrasonic_dist = sr04.Distance();
     }
     
     Stop_Motors();
+    
+    //DEBUG
+    delay(5000);
+    Serial.print("Encoder Tick: ");
+    Serial.print(encoder_count);
+    Serial.print("Ultrasonic: ");
+    Serial.println(ultrasonic_dist);
   
     //Case if we just moved a tile
     if(encoder_count >= numTicksBtwnTiles) {
+      Serial.println("Moved a tile:");
       Update_Position(true);
   
-      //Detect food?
+      //Detect food
+      Serial.println("Checking for magnet:");
       if(DetectMagnet()) {
         //TODO: Handle Food Object code, indicate that food was detected
         terrain_map[curr_row][curr_col] = 'F';
@@ -621,21 +578,24 @@ void ExploreTerrain() {
   
       //Do we need to handle object to the right?
       if(curr_col < 5 && terrain_map[curr_row][curr_col + 1] == '0') {
+        Serial.println("Need to explore tile to the right:");
         Turn_CW();
         curr_direction_index += 3; //Set direction index to CW
         Stop_Motors();
       }
+      Serial.println("Don't need to explore tile to the right");
   
       //Change search direction if needed, i.e. if the outer layer has been searched now search the inner layer
       if(Layer_Searched(curr_search_layer)) {
+        Serial.println("Changing search layer");
         curr_search_layer++;
         Turn_CCW();
       }
     }
   
     //Case if we ran into something
-    else if(ultrasonicDist < 5) {
-      Serial.println("Ran into something");
+    else if(ultrasonic_dist < 5) {
+      Serial.println("Ran into something:");
       
       if(analogRead(FLAME)==0 && !(totalRGB > 150 && double(red+blue)/totalRGB >= 0.75 && double(blue) / totalRGB > 0.40)
       && !(totalRGB > 150 && double(red+green)/totalRGB >= 0.70 && double(green) / totalRGB > 0.38)) {
@@ -660,8 +620,11 @@ void ExploreTerrain() {
       }
     }
   }
-  
+  Serial.println("Print current map:");
   Print_Map();
+  Serial.println("");
+  Serial.println("");
+  Serial.println("");
 }
 
 void loop() {
@@ -672,6 +635,9 @@ void loop() {
   //Locate all of the objectives within the grid
   ExploreTerrain();
   //CompleteRemainingTasks();
+
+  Serial.println("Done Main Loop");
+  delay(20000); //delay 20 sec
 }
 
 
