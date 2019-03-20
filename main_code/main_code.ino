@@ -1,3 +1,77 @@
+/*
+#define TESTLED 13
+/*Flame Sensor
+ * Setup Info
+ * positive side of the sensor goes to the resistor
+ * negative side of the sensor goes to the 5V
+ * positive side of the sensor goes to the pinA7
+ * free side of the resistor goes to ground
+ */
+//#define FLAME_1 A7
+//#define FLAME_2 A8
+
+/*Motor and Encoder
+* POWER CONNECTED TO 5V
+* GND JUST CONNECTED TO GROUND
+*/
+//#define MOTOR_ENC_PIN_A   22 // DIGITAL
+//#define MOTOR_ENC_PIN_B   24 // DIGITAL
+
+// All PWM pins for Motors 
+//#define ENABLE_M1 2
+//#define DIR_A_M1 3
+//#define DIR_B_M1 4
+
+//#define ENABLE_M2 5
+//#define DIR_A_M2 6
+//#define DIR_B_M2 7
+
+/*Hall Eeffect Sensor
+* VCC 5V
+*/
+//const int hallPin1 = 8;    
+//const int hallPin2 = 9;
+//const int hallPin3 = 10;
+//const int hallPin4 = 11;
+
+/*Ultrosonic Sensor
+* VCC 5V
+*/
+//#define TRIG_PIN 12
+//#define ECHO_PIN 13
+ 
+/*Colour Sensor*/
+/*
+// TCS230 color recognition sensor 
+// Sensor connection pins to Arduino are shown in comments
+Color Sensor      Arduino
+-----------      --------
+ VCC               5V
+ GND               GND
+ s0                4
+ s1                5
+ s2                6
+ s3                7
+ OUT               8
+ OE                GND
+*/
+//#define sensorOut 28
+//#define S0 30
+//#define S1 32
+//#define S2 34
+//#define S3 3
+
+
+
+
+
+
+
+*/
+
+
+
+
 #include "SR04.h"
 
 //Motors
