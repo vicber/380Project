@@ -172,8 +172,9 @@ void Print_Map() {
       else {
         Serial.print(terrain_map[i][j]);
       }
+      Serial.print(" ");
     }
-    Serial.println();
+    Serial.println("");
   }
   Serial.println();
 }
@@ -260,13 +261,14 @@ void EncoderLoop(){
 }
 
 void BackupOneTile() {
-  Serial.println("Backing up one tile");
+  Serial.println(" > Backing up one tile");
   encoder_count = 0;
   Move_Backward();  
   while(abs(encoder_count) < numTicksBtwnTiles) {
       EncoderLoop();
   }
   Stop_Motors();
+  Serial.println(" > Done backing up.");
 }
 
 void Turn_CW() {
@@ -279,7 +281,7 @@ void Turn_CW() {
   delay(2000); 
   Stop_Motors();
   */
-  Serial.println("Turn_CW");
+  Serial.println("> Turn_CW");
   delay(5000); 
   Stop_Motors();  
 }
@@ -294,7 +296,7 @@ void Turn_CCW() {
   delay(2000); 
   Stop_Motors();
   */
-  Serial.println("Turn_CCW");
+  Serial.println("> Turn_CCW");
   delay(5000); 
   Stop_Motors();
 }
@@ -358,6 +360,7 @@ bool DetectMagnet() {
 
 void ReadColour() {
   // Setting red filtered photodiodes to be read
+  Serial.print("  > Read_Colour: ");
   digitalWrite(S2,LOW);
   digitalWrite(S3,LOW);
   red = pulseIn(sensorOut, LOW);
@@ -376,7 +379,12 @@ void ReadColour() {
   digitalWrite(S3,HIGH);
   blue = pulseIn(sensorOut, LOW);
   blue = map(blue, loBlue, hiBlue, 0, 255);
-
+  Serial.print("R: ");
+  Serial.print(red);
+  Serial.print(" G: ");
+  Serial.print(green);
+  Serial.print(" B: ");
+  Serial.println(blue);
   totalRGB = red + blue + green;
 }
 
@@ -408,10 +416,10 @@ void Put_Out_Fire() {
 }
 
 void Handle_Object() {
+  Serial.println(" > Handle_Object");
   ReadColour();
-  Serial.println("Handle_Object");
   if(Detect_Yellow_House()) {
-    Serial.println("Detect Yellow House: Found lost person");
+    Serial.println("  > Detect Yellow House: Found lost person");
     foundPerson = true;
     task_status[FIND_LOST_PERSON] = 1;
     terrain_map[curr_row][curr_col] = 'P';
@@ -419,7 +427,7 @@ void Handle_Object() {
     task_location[FIND_LOST_PERSON][1] = curr_col;
   }
   else if(Detect_Red_House()){
-    Serial.println("Detect Red House: Group of Survivors");
+    Serial.println("  > Detect Red House: Group of Survivors");
     foundGroup = true;
     terrain_map[curr_row][curr_col] = 'G';
     task_location[FEED_SURVIVORS][0] = curr_row;
@@ -428,11 +436,11 @@ void Handle_Object() {
       task_status[FEED_SURVIVORS] = 1;
     }
     else {
-      Serial.println("Need to collect food before feeding survivors.");
+      Serial.println("  > Need to collect food before feeding survivors.");
     }
   }
   else if(analogRead(FLAME)!=0) {
-    Serial.println("Detect Lit Candle");
+    Serial.println("  > Detect Lit Candle");
     foundCandle = true;
     terrain_map[curr_row][curr_col] = 'C';
     task_location[FIRE_OFF][0] = curr_row;
@@ -441,7 +449,7 @@ void Handle_Object() {
     task_status[FIRE_OFF] = 1;
   }
   else if(DetectMagnet()) {
-    Serial.println("Detect Food");
+    Serial.println("  > Detect Food");
     terrain_map[curr_row][curr_col] = 'F';
     task_location[COLLECT_FOOD][0] = curr_row;
     task_location[COLLECT_FOOD][1] = curr_col;
@@ -449,7 +457,7 @@ void Handle_Object() {
     task_status[COLLECT_FOOD] = 1;
   }
   else {
-    Serial.println("Nothing read");
+    Serial.println("  > Nothing read");
     terrain_map[curr_row][curr_col] = '1';
   }
 }
@@ -540,11 +548,12 @@ void ExploreTerrain() {
   int curr_search_layer  = 0; //0 is the outer layer, 2 is the most inner layer
   
   while(!FoundEverything()) {
-    Serial.println("Explore Terrain Loop");  
+    Serial.println("Explore Terrain Loop");
     Move_Forward();
     encoder_count = 0;
     ultrasonic_dist = sr04.Distance();
-  
+
+    Serial.println("Moving Forward..");
     //keep moving forward until hit objective or go to new tile
     while(ultrasonic_dist > 5 && encoder_count < numTicksBtwnTiles) {
       EncoderLoop();
@@ -554,11 +563,11 @@ void ExploreTerrain() {
     Stop_Motors();
     
     //DEBUG
-    delay(5000);
     Serial.print("Encoder Tick: ");
     Serial.print(encoder_count);
-    Serial.print("Ultrasonic: ");
+    Serial.print("  Ultrasonic: ");
     Serial.println(ultrasonic_dist);
+    delay(5000);
   
     //Case if we just moved a tile
     if(encoder_count >= numTicksBtwnTiles) {
@@ -599,6 +608,7 @@ void ExploreTerrain() {
       
       if(analogRead(FLAME)==0 && !(totalRGB > 150 && double(red+blue)/totalRGB >= 0.75 && double(blue) / totalRGB > 0.40)
       && !(totalRGB > 150 && double(red+green)/totalRGB >= 0.70 && double(green) / totalRGB > 0.38)) {
+        Serial.println("Detected a wall");
         //if a wall
         //TODO: Instead of backing up one tile, back up the amount we went forward, for better accuracy
         BackupOneTile();
@@ -606,6 +616,7 @@ void ExploreTerrain() {
       }
       else {
         //if an object
+        Serial.println("Detected an object");
         Update_Position(true);
         Handle_Object();        
         BackupOneTile();
@@ -615,11 +626,13 @@ void ExploreTerrain() {
 
       //Change search direction if needed, i.e. if the outer layer has been searched now search the inner layer
       if(Layer_Searched(curr_search_layer)) {
+        Serial.println("Layer completely searched, changing search layer");
         curr_search_layer++;
         Turn_CCW();
       }
     }
   }
+  Serial.println("");
   Serial.println("Print current map:");
   Print_Map();
   Serial.println("");
