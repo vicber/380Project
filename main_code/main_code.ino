@@ -343,10 +343,14 @@ bool Detect_Red_House() {
 
 void Put_Out_Fire() {
   Move_Forward();
-  while(analogRead(FLAME)!=0) {}
-  delay(200); //go a bit more in
+  ultrasonic_dist = sr04.Distance();
+  while(analogRead(FLAME)!=0) {
+  }
+  delay(250); //go a bit more in
   Stop_Motors();
   
+  //Backup the distance we travelled
+  Backup(ultrasonic_dist - sr04.Distance());
 }
 
 void Handle_Object() {
