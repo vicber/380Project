@@ -39,13 +39,6 @@ const double redHouse_B = 0.40;  //percent of B over RGB
 //Flame
 #define FLAME A7
 
-//Encoder
-#define MOTOR_ENC_PIN_A   22 // DIGITAL
-#define MOTOR_ENC_PIN_B   24 // DIGITAL
-int last_enc_val_A, last_enc_val_B, enc_val_A, enc_val_B;
-int encoder_count;
-const int numTicksBtwnTiles = 20;
-
 #define ROWS 6
 #define COLS 6
 
@@ -126,13 +119,6 @@ void setup() {
   oldState3 = hallState3;
   oldState4 = hallState4;
   oldState5 = hallState5;
-  
-  //Encoders
-  pinMode(MOTOR_ENC_PIN_A, INPUT);
-  pinMode(MOTOR_ENC_PIN_B, INPUT);
-  last_enc_val_A = digitalRead(MOTOR_ENC_PIN_A);
-  last_enc_val_B = digitalRead(MOTOR_ENC_PIN_B);
-  encoder_count = 0;
 
   //Motors
   pinMode(DIR_A_M1, OUTPUT);
@@ -202,62 +188,6 @@ void Stop_Motors() {
   digitalWrite(DIR_A_M2, LOW);
   digitalWrite(DIR_B_M1, LOW);
   digitalWrite(DIR_B_M2, LOW);  
-}
-
-void EncoderLoop(){
-  int diff_enc_val_A, diff_enc_val_B;
-  
-  enc_val_A = digitalRead(MOTOR_ENC_PIN_A);
-  enc_val_B = digitalRead(MOTOR_ENC_PIN_B);
-  diff_enc_val_A = enc_val_A - last_enc_val_A;
-  diff_enc_val_B = enc_val_B - last_enc_val_B;
-
-
-  if (abs(diff_enc_val_A) == 1 || abs(diff_enc_val_B) == 1) {
-    // If one of the pin values changed, need to evaluate change...
-    if (diff_enc_val_A == 1) {
-      // Pin A value switched from low to high
-      if (enc_val_B == 1) {
-        // Going CW, increment the count
-        encoder_count++;
-      } else {
-        // Going CCW, decrement the count
-        encoder_count--;
-      }
-    } else if (diff_enc_val_A == -1) {
-      // Pin A value switched from high to low
-      if (enc_val_B == 0) {
-        // Going CW, increment the count
-        encoder_count++;
-      } else {
-        // Going CCW, decrement the count
-        encoder_count--;
-      }
-    } else if (diff_enc_val_B == 1) {
-      // Pin B value switched from low to high
-      if (enc_val_A == 0) {
-        // Going CW, increment the count
-        encoder_count++;
-      } else {
-        // Going CCW, decrement the count
-        encoder_count--;
-      }
-    } else {
-      // Pin B value switched from high to low
-      if (enc_val_A == 1) {
-        // Going CW, increment the count
-        encoder_count++;
-      } else {
-        // Going CCW, decrement the count
-        encoder_count--;
-      }
-    }
-  }
-  Serial.print("Encoder: ");
-  Serial.println(encoder_count);
-
-  last_enc_val_A = enc_val_A;
-  last_enc_val_B = enc_val_B;
 }
 
 void Backup(long dist) {
@@ -416,6 +346,7 @@ void Put_Out_Fire() {
   while(analogRead(FLAME)!=0) {}
   delay(200); //go a bit more in
   Stop_Motors();
+  
 }
 
 void Handle_Object() {
@@ -553,7 +484,6 @@ void ExploreTerrain() {
   while(!FoundEverything()) {
     Serial.println("Explore Terrain Loop");
     Move_Forward();
-    encoder_count = 0;
     ultrasonic_dist = sr04.Distance();
     long initial_ultrasonic = ultrasonic_dist;
 
