@@ -74,6 +74,9 @@ Color Sensor      Arduino
 
 #include "SR04.h"
 
+//Test LED
+#define TESTLED 13
+
 //Motors
 #define ENABLE_M1 3
 #define DIR_A_M1 4
@@ -86,15 +89,15 @@ const int min_fwd_speed = 220;
 const int min_turn_speed = 210;
 int speed;
 
-#define TRIG_PIN 7
-#define ECHO_PIN 6
+#define TRIG_PIN 12
+#define ECHO_PIN 13
 
 //Colour Sensor Stuff
-#define S0 4
-#define S1 5
-#define S2 6
-#define S3 7
-#define sensorOut 8
+#define S0 30
+#define S1 32
+#define S2 34
+#define S3 36
+#define sensorOut 28
 const int loRed = 146;
 const int hiRed = 60;
 const int loBlue = 59; 
@@ -108,22 +111,34 @@ const double redHouse_RB = 0.75; //percent of RB over RGB
 const double redHouse_B = 0.40;  //percent of B over RGB
 
 //Flame
-#define FLAME 8
+#define FLAME A7
 
 //Encoder
 #define MOTOR_ENC_PIN_A   22 // DIGITAL
 #define MOTOR_ENC_PIN_B   24 // DIGITAL
 int last_enc_val_A, last_enc_val_B, enc_val_A, enc_val_B;
 int encoder_count;
-const int numTicksBtwnTiles = 50;
+const int numTicksBtwnTiles = 20;
 
 #define ROWS 6
 #define COLS 6
 
 //Hall Effect Sensor
-const int hallPin = 12;     // the number of the hall effect sensor pin
-const int ledPin =  13;     // the number of the LED pin
-int hallState = 0;          // variable for reading the hall sensor status
+const int hallPin1 = 53;     // the number of the hall effect sensor pin
+const int hallPin2 = 51;     // the number of the hall effect sensor pin
+const int hallPin3 = 49;     // the number of the hall effect sensor pin
+const int hallPin4 = 47;     // the number of the hall effect sensor pin
+const int hallPin5 = 45;     // the number of the hall effect sensor pin
+int hallState1 = 0;          // variable for reading the hall sensor status
+int hallState2 = 0;          // variable for reading the hall sensor status
+int hallState3 = 0;          // variable for reading the hall sensor status
+int hallState4 = 0;          // variable for reading the hall sensor status
+int hallState5 = 0;          // variable for reading the hall sensor status
+int oldState1 = 0;
+int oldState2 = 0;
+int oldState3 = 0;
+int oldState4 = 0;
+int oldState5 = 0;
 
 // Vin 3.3V 
 int red = 0;
@@ -163,11 +178,28 @@ int task_location[4][2] = {0};
 void setup() {
   Serial.begin(9600);
 
+  //TEST LED
+  pinMode(TESTLED, OUTPUT);
+  
   //Flame
   pinMode(FLAME, INPUT);
   
   //Hall effect
-  pinMode(hallPin, INPUT);
+  pinMode(hallPin1, INPUT);
+  pinMode(hallPin2, INPUT);
+  pinMode(hallPin3, INPUT);
+  pinMode(hallPin4, INPUT);
+  pinMode(hallPin5, INPUT);
+  hallState1 = digitalRead(hallPin1);
+  hallState2 = digitalRead(hallPin2);
+  hallState3 = digitalRead(hallPin3);
+  hallState4 = digitalRead(hallPin4);
+  hallState5 = digitalRead(hallPin5);
+  oldState1 = hallState1;
+  oldState2 = hallState2;
+  oldState3 = hallState3;
+  oldState4 = hallState4;
+  oldState5 = hallState5;
   
   //Encoders
   pinMode(MOTOR_ENC_PIN_A, INPUT);
@@ -192,6 +224,32 @@ void setup() {
   // Setting frequency-scaling to 20%
   digitalWrite(S0,HIGH);
   digitalWrite(S1,HIGH);
+
+  // initialize map to be unknown/unvisited
+  for(int i = 0; i < 6; ++i) {
+    for(int j = 0; j < 6; ++j) {
+      terrain_map[i][j] = '0';
+    }
+  }
+  //Record starting position
+  terrain_map[curr_row][curr_col] = '1';
+}
+
+void Print_Map() {
+  Serial.println();
+  
+  for(int i = 0; i < 6; ++i) {
+    for(int j =0; j < 6; ++j) {
+      if(i == curr_row && j == curr_col) {
+        Serial.print("*");
+      }
+      else {
+        Serial.print(terrain_map[i][j]);
+      }
+    }
+    Serial.println();
+  }
+  Serial.println();
 }
 
 bool ReachWall(){
@@ -278,8 +336,8 @@ void EncoderLoop(){
 void BackupOneTile() {
   Serial.println("Backing up one tile");
   encoder_count = 0;
-  Move_Backward();
-  while(encoder_count < numTicksBtwnTiles) {
+  Move_Backward();  
+  while(abs(encoder_count) < numTicksBtwnTiles) {
       EncoderLoop();
   }
   Stop_Motors();
@@ -328,14 +386,42 @@ bool FoundEverything() {
 }
 
 bool DetectMagnet() {
-  //TODO: Hall Effect code is a toggle, so check if the value toggled from before
-  hallState = digitalRead(hallPin);
-  if (hallState == LOW) {     
-    return true;
-  } 
-  else {
-    return false;
+  int numDetects = 0;
+  hallState1 = digitalRead(hallPin1);
+  hallState2 = digitalRead(hallPin2);
+  hallState3 = digitalRead(hallPin3);
+  hallState4 = digitalRead(hallPin4);
+  hallState5 = digitalRead(hallPin5);
+  
+  if(hallState1 != oldState1) {
+    numDetects++;
+    Serial.println("Detects");
   }
+  if(hallState2 != oldState2) {
+    numDetects++;
+    Serial.println("Detects");
+  }
+  if(hallState3 != oldState3) {
+    numDetects++;
+    Serial.println("Detects");
+  }
+  if(hallState4 != oldState4) {
+    numDetects++;
+    Serial.println("Detects");
+  }
+  if(hallState5 != oldState5) {
+    numDetects++;
+    Serial.println("Detects");
+  }
+
+  oldState1 = hallState1;
+  oldState2 = hallState2;
+  oldState3 = hallState3;
+  oldState4 = hallState4;
+  oldState5 = hallState5;
+
+  if(numDetects >= 1) return true;
+  else return false;
 }
 
 void ReadColour() {
@@ -384,7 +470,7 @@ bool Detect_Red_House() {
 
 void Put_Out_Fire() {
   Move_Forward();
-  while(digitalRead(FLAME)==HIGH) {}
+  while(analogRead(FLAME)!=0) {}
   delay(200); //go a bit more in
   Stop_Motors();
 }
@@ -413,7 +499,7 @@ void Handle_Object() {
       Serial.println("Need to collect food before feeding survivors.");
     }
   }
-  else if(digitalRead(FLAME)==HIGH) {
+  else if(analogRead(FLAME)!=0) {
     Serial.println("Detect Lit Candle");
     foundCandle = true;
     terrain_map[curr_row][curr_col] = 'C';
@@ -551,7 +637,7 @@ void ExploreTerrain() {
     else if(ultrasonicDist < 5) {
       Serial.println("Ran into something");
       
-      if(digitalRead(FLAME)==LOW && !(totalRGB > 150 && double(red+blue)/totalRGB >= 0.75 && double(blue) / totalRGB > 0.40)
+      if(analogRead(FLAME)==0 && !(totalRGB > 150 && double(red+blue)/totalRGB >= 0.75 && double(blue) / totalRGB > 0.40)
       && !(totalRGB > 150 && double(red+green)/totalRGB >= 0.70 && double(green) / totalRGB > 0.38)) {
         //if a wall
         //TODO: Instead of backing up one tile, back up the amount we went forward, for better accuracy
@@ -574,26 +660,17 @@ void ExploreTerrain() {
       }
     }
   }
+  
+  Print_Map();
 }
 
 void loop() {
   // enable the motors
   analogWrite(ENABLE_M1, speed); // From 0 - 255?
   analogWrite(ENABLE_M2, speed); // From 0 - 255?
-
-  // initialize map to be unknown/unvisited
-  for(int i = 0; i < 6; ++i) {
-    for(int j = 0; j < 6; ++j) {
-      terrain_map[i][j] = '0';
-    }
-  }
-
-  //Record starting position
-  terrain_map[curr_row][curr_col] = '1';
   
   //Locate all of the objectives within the grid
   ExploreTerrain();
-
   //CompleteRemainingTasks();
 }
 
