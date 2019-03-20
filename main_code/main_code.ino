@@ -4,13 +4,13 @@
 #define TESTLED 13
 
 //Motors
-#define ENABLE_M1 2
-#define DIR_A_M1 3
-#define DIR_B_M1 4
+#define ENABLE_M1 3
+#define DIR_A_M1 4
+#define DIR_B_M1 5
 
-#define ENABLE_M2 5
-#define DIR_A_M2 6
-#define DIR_B_M2 7
+#define ENABLE_M2 11
+#define DIR_A_M2 12
+#define DIR_B_M2 13
 const int min_fwd_speed = 220;
 const int min_turn_speed = 210;
 int speed;
@@ -44,24 +44,27 @@ const double redHouse_B = 0.40;  //percent of B over RGB
 #define MOTOR_ENC_PIN_B   24 // DIGITAL
 int last_enc_val_A, last_enc_val_B, enc_val_A, enc_val_B;
 int encoder_count;
-const int numTicksBtwnTiles = 50;
+const int numTicksBtwnTiles = 20;
 
 #define ROWS 6
 #define COLS 6
 
 //Hall Effect Sensor
-const int hallPin1 = 8;     // the number of the hall effect sensor pin
-const int hallPin2 = 9;     // the number of the hall effect sensor pin
-const int hallPin3 = 10;     // the number of the hall effect sensor pin
-const int hallPin4 = 11;     // the number of the hall effect sensor pin
+const int hallPin1 = 53;     // the number of the hall effect sensor pin
+const int hallPin2 = 51;     // the number of the hall effect sensor pin
+const int hallPin3 = 49;     // the number of the hall effect sensor pin
+const int hallPin4 = 47;     // the number of the hall effect sensor pin
+const int hallPin5 = 45;     // the number of the hall effect sensor pin
 int hallState1 = 0;          // variable for reading the hall sensor status
 int hallState2 = 0;          // variable for reading the hall sensor status
 int hallState3 = 0;          // variable for reading the hall sensor status
 int hallState4 = 0;          // variable for reading the hall sensor status
+int hallState5 = 0;          // variable for reading the hall sensor status
 int oldState1 = 0;
 int oldState2 = 0;
 int oldState3 = 0;
 int oldState4 = 0;
+int oldState5 = 0;
 
 // Vin 3.3V 
 int red = 0;
@@ -112,14 +115,17 @@ void setup() {
   pinMode(hallPin2, INPUT);
   pinMode(hallPin3, INPUT);
   pinMode(hallPin4, INPUT);
+  pinMode(hallPin5, INPUT);
   hallState1 = digitalRead(hallPin1);
   hallState2 = digitalRead(hallPin2);
   hallState3 = digitalRead(hallPin3);
   hallState4 = digitalRead(hallPin4);
+  hallState5 = digitalRead(hallPin5);
   oldState1 = hallState1;
   oldState2 = hallState2;
   oldState3 = hallState3;
   oldState4 = hallState4;
+  oldState5 = hallState5;
   
   //Encoders
   pinMode(MOTOR_ENC_PIN_A, INPUT);
@@ -144,6 +150,32 @@ void setup() {
   // Setting frequency-scaling to 20%
   digitalWrite(S0,HIGH);
   digitalWrite(S1,HIGH);
+
+  // initialize map to be unknown/unvisited
+  for(int i = 0; i < 6; ++i) {
+    for(int j = 0; j < 6; ++j) {
+      terrain_map[i][j] = '0';
+    }
+  }
+  //Record starting position
+  terrain_map[curr_row][curr_col] = '1';
+}
+
+void Print_Map() {
+  Serial.println();
+  
+  for(int i = 0; i < 6; ++i) {
+    for(int j =0; j < 6; ++j) {
+      if(i == curr_row && j == curr_col) {
+        Serial.print("*");
+      }
+      else {
+        Serial.print(terrain_map[i][j]);
+      }
+    }
+    Serial.println();
+  }
+  Serial.println();
 }
 
 bool ReachWall(){
@@ -230,8 +262,8 @@ void EncoderLoop(){
 void BackupOneTile() {
   Serial.println("Backing up one tile");
   encoder_count = 0;
-  Move_Backward();
-  while(encoder_count < numTicksBtwnTiles) {
+  Move_Backward();  
+  while(abs(encoder_count) < numTicksBtwnTiles) {
       EncoderLoop();
   }
   Stop_Motors();
@@ -285,26 +317,36 @@ bool DetectMagnet() {
   hallState2 = digitalRead(hallPin2);
   hallState3 = digitalRead(hallPin3);
   hallState4 = digitalRead(hallPin4);
+  hallState5 = digitalRead(hallPin5);
   
   if(hallState1 != oldState1) {
     numDetects++;
+    Serial.println("Detects");
   }
   if(hallState2 != oldState2) {
     numDetects++;
+    Serial.println("Detects");
   }
   if(hallState3 != oldState3) {
     numDetects++;
+    Serial.println("Detects");
   }
   if(hallState4 != oldState4) {
     numDetects++;
+    Serial.println("Detects");
+  }
+  if(hallState5 != oldState5) {
+    numDetects++;
+    Serial.println("Detects");
   }
 
   oldState1 = hallState1;
   oldState2 = hallState2;
   oldState3 = hallState3;
   oldState4 = hallState4;
+  oldState5 = hallState5;
 
-  if(numDetects >= 2) return true;
+  if(numDetects >= 1) return true;
   else return false;
 }
 
@@ -544,26 +586,17 @@ void ExploreTerrain() {
       }
     }
   }
+  
+  Print_Map();
 }
 
 void loop() {
   // enable the motors
   analogWrite(ENABLE_M1, speed); // From 0 - 255?
   analogWrite(ENABLE_M2, speed); // From 0 - 255?
-
-  // initialize map to be unknown/unvisited
-  for(int i = 0; i < 6; ++i) {
-    for(int j = 0; j < 6; ++j) {
-      terrain_map[i][j] = '0';
-    }
-  }
-
-  //Record starting position
-  terrain_map[curr_row][curr_col] = '1';
   
   //Locate all of the objectives within the grid
   ExploreTerrain();
-
   //CompleteRemainingTasks();
 }
 
