@@ -1,4 +1,43 @@
 #include "SR04.h"
+#include "MPU9250.h"
+#include <PID_v1.h>
+
+/*
+ * IMU STUFF
+ */
+#define SPEED_DIFF 35
+double calculated_speed;
+int set_PID_max = 1;
+double PID_max;
+// PID Gain Values
+double Kp=0.05, Ki=5, Kd=0.1;
+// an MPU9250 object with the MPU-9250 sensor on I2C bus 0 with address 0x68
+MPU9250 IMU(Wire,0x68);
+int status;
+double yaw, desired_yaw;
+// PID Control
+PID turnPID(&yaw, &calculated_speed, &desired_yaw, Kp, Ki, Kd, DIRECT);
+// Gyroscope Data
+double omega_z; // RAD/SEC
+double theta_z; // RAD
+
+#define GZ_OFFSET   -0.000434851
+#define THETA_SCALING  1.003786916
+#define GZ_DEAD_PASS_CUTOFF 0.25 // RAD/SEC
+// Filter Parameters
+// LOW PASS FILTERS NOISE FROM RAW DATA
+double curr_LP_filtered_data, prev_LP_filtered_data; // RAD/SEC
+
+#define LP_CUTOFF_FREQ_HZ  5
+double RC_LP = 1.0/(2*M_PI*LP_CUTOFF_FREQ_HZ);
+double alpha_LP;
+
+// Time Data
+int t1, t2;
+double dt;
+/*
+ * IMU STUFF
+ */
 
 //Test LED
 #define TESTLED 13
@@ -100,8 +139,173 @@ int task_status[4] = {0}; //All tasks are incomplete at start
 int task_location[4][2] = {0};
 // This is used to find exact location of each task quickly without having to iterate over the whole terrain map
 
+/* IMU
+ *  PID
+ */
+double apply_dead_pass_gz(double gz) {
+  if (abs(gz) < GZ_DEAD_PASS_CUTOFF) {
+    return 0.0;
+  } else {
+    return gz;
+  }
+}
+
+void reset_yaw() {
+  omega_z = 0.0;
+  theta_z = 0.0;
+  yaw = 0.0;
+
+  IMU.readSensor();
+  t1 = millis();
+  
+  curr_LP_filtered_data = apply_dead_pass_gz(IMU.getGyroZ_rads() + GZ_OFFSET);
+  prev_LP_filtered_data = curr_LP_filtered_data;
+}
+
+void update_yaw() {
+  // Read the sensor
+  IMU.readSensor();
+  t2 = millis();
+
+  // Apply LP Filter
+  dt = (t2 - t1)/1000.0; // Convert to seconds
+  alpha_LP = dt/(RC_LP+dt);
+
+  curr_LP_filtered_data = prev_LP_filtered_data + (alpha_LP * (apply_dead_pass_gz(IMU.getGyroZ_rads() + GZ_OFFSET) - prev_LP_filtered_data));
+  
+  // Update integrations
+  omega_z = (curr_LP_filtered_data + prev_LP_filtered_data)/2.0;
+  theta_z += (omega_z * dt) * THETA_SCALING;
+  
+  // Setup parameters for next run
+  t1 = t2;
+  prev_LP_filtered_data = curr_LP_filtered_data;
+
+  // Set yaw value
+  yaw = abs(theta_z);
+  Serial.print(yaw/M_PI*180);
+
+  // Adjust the output according to current yaw value
+  turnPID.Compute();
+  Serial.print("  ");
+  Serial.print(calculated_speed);
+  if (set_PID_max) {
+    PID_max = calculated_speed;
+    set_PID_max = 0;
+  }
+  speed = map(calculated_speed, 0, PID_max+10, 155 + SPEED_DIFF, 255);
+  Serial.print("  ");
+  Serial.println(speed);
+}
+
+void Turn_CCW() {
+  Serial.println("Turning CCW...");
+
+  // Set initial parameters
+  reset_yaw();
+  speed = min_turn_speed;
+  set_PID_max = 1;
+  
+  // Initialize PID Parameters
+//  desired_yaw = M_PI/2 - 8/180*M_PI;
+//  desired_yaw = 1.43117; // 82 degrees
+  desired_yaw = 1.41372; // 81 degrees
+  turnPID.SetMode(AUTOMATIC); // Turn the PID on
+  turnPID.SetTunings(Kp, Ki, Kd);
+
+  analogWrite(ENABLE_M1, speed);
+  analogWrite(ENABLE_M2, speed - SPEED_DIFF);
+
+  digitalWrite(DIR_A_M1, HIGH);
+  digitalWrite(DIR_A_M2, LOW);
+  digitalWrite(DIR_B_M1, LOW);
+  digitalWrite(DIR_B_M2, HIGH);
+  
+  while (abs(yaw) < desired_yaw) {
+    update_yaw();
+    analogWrite(ENABLE_M1, speed);
+    analogWrite(ENABLE_M2, speed - SPEED_DIFF);
+  }
+
+  digitalWrite(DIR_A_M1, LOW);
+  digitalWrite(DIR_B_M2, LOW);
+  
+  Serial.println("Done turing CW");
+  delay(2000);
+}
+
+void Turn_CW() {
+  Serial.println("Turning CW...");
+
+  // Set initial parameters
+  reset_yaw();
+  speed = min_turn_speed;
+  set_PID_max = 1;
+  
+  // Initialize PID Parameters
+//  desired_yaw = M_PI/2 - 8/180*M_PI;
+//  desired_yaw = 1.43117; // 82 degrees
+  desired_yaw = 1.41372; // 81 degrees
+  turnPID.SetMode(AUTOMATIC); // Turn the PID on
+  turnPID.SetTunings(Kp, Ki, Kd);
+
+  analogWrite(ENABLE_M1, speed);
+  analogWrite(ENABLE_M2, speed - SPEED_DIFF);
+
+  digitalWrite(DIR_A_M1, LOW);
+  digitalWrite(DIR_A_M2, HIGH);
+  digitalWrite(DIR_B_M1, HIGH);
+  digitalWrite(DIR_B_M2, LOW);
+  
+  while (abs(yaw) < desired_yaw) {
+    update_yaw();
+    analogWrite(ENABLE_M1, speed);
+    analogWrite(ENABLE_M2, speed - SPEED_DIFF);
+  }
+
+  digitalWrite(DIR_A_M1, LOW);
+  digitalWrite(DIR_B_M2, LOW);
+
+  Serial.println("Done turing CW");
+  delay(2000);
+}
+
+void Move_Forward() {
+  speed = min_fwd_speed;
+  analogWrite(ENABLE_M1, speed);
+  analogWrite(ENABLE_M2, speed  - SPEED_DIFF);
+  
+  digitalWrite(DIR_A_M1, LOW);
+  digitalWrite(DIR_A_M2, LOW);
+  digitalWrite(DIR_B_M1, HIGH);
+  digitalWrite(DIR_B_M2, HIGH);
+}
+
 void setup() {
   Serial.begin(9600);
+  
+  //IMU/PID STUFF
+  // serial to display data
+  while(!Serial) {}
+
+  // start communication with IMU 
+  status = IMU.begin();
+  if (status < 0) {
+    Serial.println("IMU initialization unsuccessful");
+    Serial.println("Check IMU wiring or try cycling power");
+    Serial.print("Status: ");
+    Serial.println(status);
+    while(1) {}
+  }
+  // setting the accelerometer full scale range to +/-8G 
+  IMU.setAccelRange(MPU9250::ACCEL_RANGE_8G);
+  // setting the gyroscope full scale range to +/-500 deg/s
+  IMU.setGyroRange(MPU9250::GYRO_RANGE_500DPS);
+  // setting DLPF bandwidth to 20 Hz
+  IMU.setDlpfBandwidth(MPU9250::DLPF_BANDWIDTH_20HZ);
+  // setting SRD to 19 for a 50 Hz update rate
+  IMU.setSrd(19);
+  
 
   //TEST LED
   pinMode(TESTLED, OUTPUT);
@@ -180,18 +384,11 @@ void setLEDColor(int redValue, int greenValue, int blueValue) {
   analogWrite(bluePin, blueValue);
 }
 
-bool ReachWall(){
-  return true;
-}
-
-void Move_Forward() {
-  digitalWrite(DIR_A_M1, LOW);
-  digitalWrite(DIR_A_M2, LOW);
-  digitalWrite(DIR_B_M1, HIGH);
-  digitalWrite(DIR_B_M2, HIGH);
-}
-
 void Move_Backward() {
+  speed = min_fwd_speed;
+  analogWrite(ENABLE_M1, speed);
+  analogWrite(ENABLE_M2, speed  - SPEED_DIFF);
+  
   digitalWrite(DIR_A_M1, HIGH);
   digitalWrite(DIR_A_M2, HIGH);
   digitalWrite(DIR_B_M1, LOW);
@@ -244,36 +441,6 @@ void Backup(long dist) {
   
   Stop_Motors();
   Serial.println(" > Done backing up.");
-}
-
-void Turn_CW() {
-  /*
-  digitalWrite(DIR_A_M1, LOW);
-  digitalWrite(DIR_A_M2, HIGH);
-  digitalWrite(DIR_B_M1, HIGH);
-  digitalWrite(DIR_B_M2, LOW);
-  //TODO: adjust this to use magnetometer
-  delay(2000); 
-  Stop_Motors();
-  */
-  Serial.println("> Turn_CW");
-  delay(5000); 
-  Stop_Motors();  
-}
-
-void Turn_CCW() {
-  /*
-  digitalWrite(DIR_A_M1, HIGH);
-  digitalWrite(DIR_A_M2, LOW);
-  digitalWrite(DIR_B_M1, LOW);
-  digitalWrite(DIR_B_M2, HIGH);
-  //TODO: adjust this to use magnetometer
-  delay(2000); 
-  Stop_Motors();
-  */
-  Serial.println("> Turn_CCW");
-  delay(5000); 
-  Stop_Motors();
 }
 
 bool FoundEverything() {
@@ -731,14 +898,7 @@ void Run_Into_Object_Test() {
   delay(20000);
 }
 
-void House_Test() {
-  
-}
-
 void loop() {
-  // enable the motors
-  analogWrite(ENABLE_M1, speed); // From 0 - 255?
-  analogWrite(ENABLE_M2, speed); // From 0 - 255?
   
   //Locate all of the objectives within the grid
   Run_Into_Object_Test();
@@ -965,3 +1125,33 @@ void CompleteRemainingTasks() {
   // If all tasks are not complete, repeat process
 }
 */
+
+void Turn_CW_Test() {
+  /*
+  digitalWrite(DIR_A_M1, LOW);
+  digitalWrite(DIR_A_M2, HIGH);
+  digitalWrite(DIR_B_M1, HIGH);
+  digitalWrite(DIR_B_M2, LOW);
+  //TODO: adjust this to use magnetometer
+  delay(2000); 
+  Stop_Motors();
+  */
+  Serial.println("> Turn_CW_Test");
+  delay(5000); 
+  Stop_Motors();  
+}
+
+void Turn_CCW_Test() {
+  /*
+  digitalWrite(DIR_A_M1, HIGH);
+  digitalWrite(DIR_A_M2, LOW);
+  digitalWrite(DIR_B_M1, LOW);
+  digitalWrite(DIR_B_M2, HIGH);
+  //TODO: adjust this to use magnetometer
+  delay(2000); 
+  Stop_Motors();
+  */
+  Serial.println("> Turn_CCW_Test");
+  delay(5000); 
+  Stop_Motors();
+}
