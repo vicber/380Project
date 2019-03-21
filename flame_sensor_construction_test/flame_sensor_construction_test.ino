@@ -1,6 +1,6 @@
 /*The flame sensor has to use analog instead of digital*/
 #define FLAME_1 A7
-#define FLAME_2 A8
+// #define FLAME_2 A8
 #define TESTLED 13
 
 #define RED_PIN 7
