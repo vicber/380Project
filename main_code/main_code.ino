@@ -2,6 +2,9 @@
 
 //Test LED
 #define TESTLED 13
+int redPin= 7;
+int greenPin = 6;
+int bluePin = 5;
 
 //Motors
 #define ENABLE_M1 3
@@ -15,8 +18,8 @@ const int min_fwd_speed = 220;
 const int min_turn_speed = 210;
 int speed;
 
-#define TRIG_PIN 12
-#define ECHO_PIN 13
+#define TRIG_PIN 14
+#define ECHO_PIN 15
 
 //Colour Sensor Stuff
 #define S0 30
@@ -68,6 +71,9 @@ int totalRGB = 0;
 //Ultrasonic Sensor
 SR04 sr04 = SR04(ECHO_PIN,TRIG_PIN);
 long ultrasonic_dist;
+SR04 sr04_back = SR04(ECHO_PIN,TRIG_PIN);
+long ultrasonic_dist_back;
+const long tile_dist = 30;
 
 char terrain_map[6][6];
 char directions[] = {'N', 'W', 'S', 'E'};
@@ -99,6 +105,9 @@ void setup() {
 
   //TEST LED
   pinMode(TESTLED, OUTPUT);
+  pinMode(redPin, OUTPUT);
+  pinMode(greenPin, OUTPUT);
+  pinMode(bluePin, OUTPUT);
   
   //Flame
   pinMode(FLAME, INPUT);
@@ -165,6 +174,12 @@ void Print_Map() {
   Serial.println();
 }
 
+void setLEDColor(int redValue, int greenValue, int blueValue) {
+  analogWrite(redPin, redValue);
+  analogWrite(greenPin, greenValue);
+  analogWrite(bluePin, blueValue);
+}
+
 bool ReachWall(){
   return true;
 }
@@ -193,13 +208,40 @@ void Stop_Motors() {
 void Backup(long dist) {
   Serial.print(" > Backing up by ");
   Serial.println(dist);
-  ultrasonic_dist = sr04.Distance();
-  long initial_ultrasonic = ultrasonic_dist;
+  ultrasonic_dist_back = sr04_back.Distance();
   
   Move_Backward();  
-  while(abs(ultrasonic_dist - initial_ultrasonic) < dist) {
-    ultrasonic_dist = sr04.Distance();
+
+  //Deal with ultrasonic noise
+  while(ultrasonic_dist_back < 9) {
+    ultrasonic_dist_back = sr04_back.Distance();
+    delay(100);
   }
+
+  //keep moving forward until hit objective or go to new tile
+  int jump_count_back = 0;
+  long initial_ultrasonic = ultrasonic_dist_back;
+  while(abs(ultrasonic_dist_back - initial_ultrasonic) < dist || ultrasonic_dist_back == 0) {
+    long old_val_back = ultrasonic_dist_back;
+    ultrasonic_dist_back = sr04_back.Distance();
+    
+    if(abs(old_val_back - ultrasonic_dist_back) > 5){
+      jump_count_back++;
+      if(jump_count_back < 5) {
+        Serial.print("too big of jump:   ");
+        Serial.println(ultrasonic_dist_back);
+        ultrasonic_dist_back = old_val_back;                       
+      }
+      else {
+        jump_count_back = 0;
+      }
+    }
+    Serial.print("  ->");
+    Serial.println(ultrasonic_dist_back);                
+    delay(100);
+  }
+
+  
   Stop_Motors();
   Serial.println(" > Done backing up.");
 }
@@ -322,7 +364,7 @@ void ReadColour() {
 }
 
 bool Detect_Yellow_House() {
-  ReadColour();
+  //ReadColour();
   if(totalRGB > minRGB && double(red+green)/totalRGB >= yellowHouse_RG && double(green) / totalRGB > yellowHouse_G) {
     return true;
   }
@@ -332,13 +374,13 @@ bool Detect_Yellow_House() {
 }
 
 bool Detect_Red_House() {
-  ReadColour();
+  //ReadColour();
   if(totalRGB > minRGB && double(red+blue)/totalRGB >= redHouse_RB && double(blue) / totalRGB > redHouse_B) {
     return true;
   }
   else {
     return false;
-  }  
+  }
 }
 
 void Put_Out_Fire() {
@@ -348,9 +390,12 @@ void Put_Out_Fire() {
   }
   delay(250); //go a bit more in
   Stop_Motors();
+  delay(1500);
   
   //Backup the distance we travelled
   Backup(ultrasonic_dist - sr04.Distance());
+  Serial.println("  > Candle extinguished");
+  
 }
 
 void Handle_Object() {
@@ -358,14 +403,21 @@ void Handle_Object() {
   ReadColour();
   if(Detect_Yellow_House()) {
     Serial.println("  > Detect Yellow House: Found lost person");
+    setLEDColor(0, 0, 255); // Yellow Color
+    delay(2000);
+    setLEDColor(255, 255, 255); // Off
     foundPerson = true;
     task_status[FIND_LOST_PERSON] = 1;
     terrain_map[curr_row][curr_col] = 'P';
     task_location[FIND_LOST_PERSON][0] = curr_row;
     task_location[FIND_LOST_PERSON][1] = curr_col;
+    
   }
   else if(Detect_Red_House()){
     Serial.println("  > Detect Red House: Group of Survivors");
+    setLEDColor(0, 255, 0); // Purple Color
+    delay(2000);
+    setLEDColor(255, 255, 255); // Off
     foundGroup = true;
     terrain_map[curr_row][curr_col] = 'G';
     task_location[FEED_SURVIVORS][0] = curr_row;
@@ -377,17 +429,24 @@ void Handle_Object() {
       Serial.println("  > Need to collect food before feeding survivors.");
     }
   }
-  else if(analogRead(FLAME)!=0) {
+  else if(analogRead(FLAME) != 0) {
     Serial.println("  > Detect Lit Candle");
+    setLEDColor(0, 255, 255); // Red Color
     foundCandle = true;
     terrain_map[curr_row][curr_col] = 'C';
     task_location[FIRE_OFF][0] = curr_row;
     task_location[FIRE_OFF][1] = curr_col;
     Put_Out_Fire();
+    setLEDColor(255, 0, 255); // Green Color
+    delay(2000);
+    setLEDColor(255, 255, 255); // Turn LED off
     task_status[FIRE_OFF] = 1;
   }
   else if(DetectMagnet()) {
     Serial.println("  > Detect Food");
+    setLEDColor(0, 255, 255); // cyan colour
+    delay(2000);
+    setLEDColor(255, 255, 255); // Turn LED off
     terrain_map[curr_row][curr_col] = 'F';
     task_location[COLLECT_FOOD][0] = curr_row;
     task_location[COLLECT_FOOD][1] = curr_col;
@@ -482,36 +541,83 @@ void ExploreTerrain() {
   
   Serial.println("Enter Explore Terrain Algorithm");
 
-  
   int curr_search_layer  = 0; //0 is the outer layer, 2 is the most inner layer
-  
   while(!FoundEverything()) {
     Serial.println("Explore Terrain Loop");
+    Serial.println("Moving Forward..");
+    Serial.print("  ->");
+    
     Move_Forward();
     ultrasonic_dist = sr04.Distance();
-    long initial_ultrasonic = ultrasonic_dist;
-
-    Serial.println("Moving Forward..");
-    //keep moving forward until hit objective or go to new tile
-    while(ultrasonic_dist > 5 && abs(initial_ultrasonic - ultrasonic_dist) < 30) {
-      //EncoderLoop();
-      ultrasonic_dist = sr04.Distance();
-    }
+    ultrasonic_dist_back = sr04_back.Distance();
     
+    Serial.println(ultrasonic_dist);
+    //Deal with ultrasonic noise
+    while(ultrasonic_dist < 9 || ultrasonic_dist_back < 9) {
+      ultrasonic_dist = sr04.Distance();
+      ultrasonic_dist_back = sr04_back.Distance();
+      delay(100);
+    }
+
+    //keep moving forward until hit objective or go to new tile
+    int jump_count = 0;
+    int jump_count_back = 0;
+    
+    long initial_ultrasonic = ultrasonic_dist_back;
+
+    while((ultrasonic_dist > 8 && abs(initial_ultrasonic - ultrasonic_dist_back) < tile_dist) ||  ultrasonic_dist == 0 || ultrasonic_dist_back == 0) {
+      long old_val = ultrasonic_dist;
+      long old_val_back = ultrasonic_dist_back;
+      ultrasonic_dist = sr04.Distance();
+      ultrasonic_dist_back = sr04_back.Distance();
+      
+      if(abs(old_val - ultrasonic_dist) > 5){
+        jump_count++;
+        if(jump_count < 5) {
+          Serial.print("too big of jump:   ");
+          Serial.println(ultrasonic_dist);
+          ultrasonic_dist = old_val;                       
+        }
+        else {
+          jump_count = 0;
+        }
+      }
+      else {
+        jump_count = 0;
+      }
+
+      if(abs(old_val_back - ultrasonic_dist_back) > 5){
+        jump_count_back++;
+        if(jump_count_back < 5) {
+          Serial.print("too big of jump:   ");
+          Serial.println(ultrasonic_dist_back);
+          ultrasonic_dist_back = old_val_back;                       
+        }
+        else {
+          jump_count_back = 0;
+        }
+      }
+      
+      else {
+        jump_count_back = 0;
+      }
+      Serial.print("  ->");
+      Serial.println(ultrasonic_dist_back);                
+      delay(100);
+    }
+       
     Stop_Motors();
     
     //DEBUG
-    //Serial.print("Encoder Tick: ");
-    //Serial.print(encoder_count);
-    long dist_travelled = initial_ultrasonic - ultrasonic_dist;
+    long dist_travelled = abs(initial_ultrasonic - ultrasonic_dist_back);
     Serial.print("Dist Travelled: ");
     Serial.print(dist_travelled);
-    Serial.print("  Ultrasonic: ");
+    Serial.print("  Front Ultrasonic: ");
     Serial.println(ultrasonic_dist);
     delay(5000);
   
     //Case if we just moved a tile
-    if(initial_ultrasonic - ultrasonic_dist >= 30) {
+    if(dist_travelled >= tile_dist) {
       Serial.println("Moved a tile:");
       Update_Position(true);
   
@@ -520,7 +626,10 @@ void ExploreTerrain() {
       if(DetectMagnet()) {
         //TODO: Handle Food Object code, indicate that food was detected
         terrain_map[curr_row][curr_col] = 'F';
+        task_location[COLLECT_FOOD][0] = curr_row;
+        task_location[COLLECT_FOOD][1] = curr_col;
         foundFood = true;
+        task_status[COLLECT_FOOD] = 1;
       }
       else {
         terrain_map[curr_row][curr_col] = '1';  
@@ -544,7 +653,7 @@ void ExploreTerrain() {
     }
   
     //Case if we ran into something
-    else if(ultrasonic_dist < 5) {
+    else if(ultrasonic_dist <= 8) {
       Serial.println("Ran into something:");
       
       if(analogRead(FLAME)==0 && !(totalRGB > 150 && double(red+blue)/totalRGB >= 0.75 && double(blue) / totalRGB > 0.40)
@@ -559,7 +668,7 @@ void ExploreTerrain() {
         //if an object
         Serial.println("Detected an object");
         Update_Position(true);
-        Handle_Object();        
+        Handle_Object();     
         Backup(dist_travelled);
         Update_Position(false); //revert the prior update position
         Turn_CCW();
@@ -572,15 +681,58 @@ void ExploreTerrain() {
         Turn_CCW();
       }
     }
+  
+    Serial.println("");
+    Serial.println("Print current map:");
+    Print_Map();
+    Serial.println("");
+    Serial.println("");
+    Serial.println("");
+    delay(10000);
   }
-  Serial.println("");
-  Serial.println("Print current map:");
-  Print_Map();
-  Serial.println("");
-  Serial.println("");
-  Serial.println("");
+}
 
-  delay(10000);
+void Run_Into_Object_Test() {
+  Serial.println("Moving Forward");
+  Move_Forward();
+  ultrasonic_dist = sr04.Distance();
+  
+  Serial.println(ultrasonic_dist);
+  //Deal with ultrasonic noise
+  while(ultrasonic_dist < 9) {
+    ultrasonic_dist = sr04.Distance();
+    delay(100);
+  }
+  int jump_count = 0;
+  while(ultrasonic_dist > 8 || ultrasonic_dist == 0) {
+    long old_val = ultrasonic_dist;
+    ultrasonic_dist = sr04.Distance();
+    
+    if(abs(old_val - ultrasonic_dist) > 5){
+      jump_count++;
+      if(jump_count < 5) {
+        Serial.print("too big of jump:   ");
+        Serial.println(ultrasonic_dist);
+        ultrasonic_dist = old_val;                       
+      }
+      else {
+        jump_count = 0;
+      }
+    }
+    Serial.print("  ->");
+    Serial.println(ultrasonic_dist);                
+    delay(100);
+  }
+
+  Stop_Motors();
+  Serial.println("Detected Object");
+  Handle_Object();
+  Serial.println("Done Function");
+  delay(20000);
+}
+
+void House_Test() {
+  
 }
 
 void loop() {
@@ -589,7 +741,8 @@ void loop() {
   analogWrite(ENABLE_M2, speed); // From 0 - 255?
   
   //Locate all of the objectives within the grid
-  ExploreTerrain();
+  Run_Into_Object_Test();
+  //ExploreTerrain();
   //CompleteRemainingTasks();
 
   Serial.println("Done Main Loop");
