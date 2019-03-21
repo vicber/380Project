@@ -1,4 +1,4 @@
- /*
+/*
  * Library: https://github.com/bolderflight/MPU9250
 Basic_I2C.ino
 Brian R Taylor
@@ -33,38 +33,171 @@ S20A is 3.3V voltage regulator MIC5205-3.3BM5
 */
 
 #include "MPU9250.h"
+#include <PID_v1.h>
+
+// MOTOR PARAMETERS
+#define ENABLE_M1 3
+#define DIR_A_M1 4
+#define DIR_B_M1 5
+
+// FASTER MOTOR
+#define ENABLE_M2 11
+#define DIR_A_M2 12
+#define DIR_B_M2 13
+
+#define SPEED_DIFF 35
+
+const int min_fwd_speed = 220;
+const int min_turn_speed = 210;
+int speed;
+double calculated_speed;
+int set_PID_max = 1;
+double PID_max;
+
+// PID Gain Values
+double Kp=0.05, Ki=5, Kd=0.1;
 
 // an MPU9250 object with the MPU-9250 sensor on I2C bus 0 with address 0x68
 MPU9250 IMU(Wire,0x68);
 int status;
 
-double roll, pitch, yaw;
+double yaw, desired_yaw;
 
-// Accelerometer Data
-double a_x, a_y; // M/(SEC^2)
-double v_x, v_y; // M/SEC
-double d_x, d_y; // M
+// PID Control
+PID turnPID(&yaw, &calculated_speed, &desired_yaw, Kp, Ki, Kd, DIRECT);
 
 // Gyroscope Data
 double omega_z; // RAD/SEC
 double theta_z; // RAD
 
-//#define GZ_OFFSET   -0.000434851
-//#define GZ_SCALING  1.003786916
-#define GZ_OFFSET   0.0
-#define GZ_SCALING  1.0
+#define GZ_OFFSET   -0.000434851
+#define THETA_SCALING  1.003786916
 
-// RC Filter Parameters
-double curr_filtered_data[6], prev_filtered_data[6];
+#define GZ_DEAD_PASS_CUTOFF 0.25 // RAD/SEC
 
-#define CUTOFF_FREQ_HZ  0.5
+// Filter Parameters
+// LOW PASS FILTERS NOISE FROM RAW DATA
+double curr_LP_filtered_data, prev_LP_filtered_data; // RAD/SEC
 
-double RC = 1.0/(2*M_PI*CUTOFF_FREQ_HZ);
-double alpha;
+#define LP_CUTOFF_FREQ_HZ  5
+
+double RC_LP = 1.0/(2*M_PI*LP_CUTOFF_FREQ_HZ);
+double alpha_LP;
 
 // Time Data
 int t1, t2;
 double dt;
+
+double apply_dead_pass_gz(double gz) {
+  if (abs(gz) < GZ_DEAD_PASS_CUTOFF) {
+    return 0.0;
+  } else {
+    return gz;
+  }
+}
+
+void reset_yaw() {
+  omega_z = 0.0;
+  theta_z = 0.0;
+  yaw = 0.0;
+
+  IMU.readSensor();
+  t1 = millis();
+  
+  curr_LP_filtered_data = apply_dead_pass_gz(IMU.getGyroZ_rads() + GZ_OFFSET);
+  prev_LP_filtered_data = curr_LP_filtered_data;
+}
+
+void update_yaw() {
+  // Read the sensor
+  IMU.readSensor();
+  t2 = millis();
+
+  // Apply LP Filter
+  dt = (t2 - t1)/1000.0; // Convert to seconds
+  alpha_LP = dt/(RC_LP+dt);
+
+  curr_LP_filtered_data = prev_LP_filtered_data + (alpha_LP * (apply_dead_pass_gz(IMU.getGyroZ_rads() + GZ_OFFSET) - prev_LP_filtered_data));
+  
+  // Update integrations
+  omega_z = (curr_LP_filtered_data + prev_LP_filtered_data)/2.0;
+  theta_z += (omega_z * dt) * THETA_SCALING;
+  
+  // Setup parameters for next run
+  t1 = t2;
+  prev_LP_filtered_data = curr_LP_filtered_data;
+
+  // Set yaw value
+  yaw = abs(theta_z);
+  Serial.print(yaw/M_PI*180);
+
+  // Adjust the output according to current yaw value
+  turnPID.Compute();
+  Serial.print("  ");
+  Serial.print(calculated_speed);
+  if (set_PID_max) {
+    PID_max = calculated_speed;
+    set_PID_max = 0;
+  }
+  speed = map(calculated_speed, 0, PID_max+10, 155 + SPEED_DIFF, 255);
+  Serial.print("  ");
+  Serial.println(speed);
+}
+
+void turn_ccw() {
+  Serial.println("Turning CCW...");
+
+  // Set initial parameters
+  reset_yaw();
+  speed = min_turn_speed;
+  set_PID_max = 1;
+  
+  // Initialize PID Parameters
+//  desired_yaw = M_PI/2 - 8/180*M_PI;
+//  desired_yaw = 1.43117; // 82 degrees
+  desired_yaw = 1.41372; // 81 degrees
+  turnPID.SetMode(AUTOMATIC); // Turn the PID on
+  turnPID.SetTunings(Kp, Ki, Kd);
+
+  analogWrite(ENABLE_M1, speed);
+  analogWrite(ENABLE_M2, speed - SPEED_DIFF);
+
+  digitalWrite(DIR_A_M1, HIGH);
+  digitalWrite(DIR_A_M2, LOW);
+  digitalWrite(DIR_B_M1, LOW);
+  digitalWrite(DIR_B_M2, HIGH);
+  
+  while (abs(yaw) < desired_yaw) {
+    update_yaw();
+    analogWrite(ENABLE_M1, speed);
+    analogWrite(ENABLE_M2, speed - SPEED_DIFF);
+  }
+
+  digitalWrite(DIR_A_M1, LOW);
+  digitalWrite(DIR_B_M2, LOW);
+
+  delay(500);
+}
+
+void move_forwards() {
+  Serial.println("Moving forwards...");
+
+  speed = min_fwd_speed;
+  analogWrite(ENABLE_M1, speed);
+  analogWrite(ENABLE_M2, speed  - SPEED_DIFF);
+  
+  digitalWrite(DIR_A_M1, LOW);
+  digitalWrite(DIR_A_M2, LOW);
+  digitalWrite(DIR_B_M1, HIGH);
+  digitalWrite(DIR_B_M2, HIGH);
+
+  delay(6000);
+
+  digitalWrite(DIR_B_M1, LOW);
+  digitalWrite(DIR_B_M2, LOW);
+
+  delay(500);
+}
 
 void setup() {
   // serial to display data
@@ -88,140 +221,64 @@ void setup() {
   IMU.setDlpfBandwidth(MPU9250::DLPF_BANDWIDTH_20HZ);
   // setting SRD to 19 for a 50 Hz update rate
   IMU.setSrd(19);
-  
-  a_y = 0.0;
-  a_x = 0.0;
-  v_y = 0.0;
-  v_x = 0.0;
-  d_y = 0.0;
-  d_x = 0.0;
-  
-  omega_z = 0.0;
-  theta_z = 0.0;
 
-  IMU.readSensor();
-  t1 = millis();
+  // pinMode(ENABLE_M1, OUTPUT);
+  pinMode(DIR_A_M1, OUTPUT);
+  pinMode(DIR_B_M1, OUTPUT);
 
-  // Initialize filtered set of data
-  prev_filtered_data[0] = IMU.getAccelX_mss();
-  prev_filtered_data[1] = IMU.getAccelY_mss();
-  prev_filtered_data[2] = IMU.getAccelZ_mss();
-  prev_filtered_data[3] = IMU.getGyroX_rads();
-  prev_filtered_data[4] = IMU.getGyroY_rads();
-  prev_filtered_data[5] = IMU.getGyroZ_rads();
+  // pinMode(ENABLE_M2, OUTPUT);
+  pinMode(DIR_A_M2, OUTPUT);
+  pinMode(DIR_B_M2, OUTPUT);
+
+  speed = min_fwd_speed;
+
+// WITHOUT MOTORS
+//  omega_z = 0.0;
+//  theta_z = 0.0;
+//  
+//  IMU.readSensor();
+//  t1 = millis();
+//  
+//  curr_LP_filtered_data = apply_dead_pass_gz(IMU.getGyroZ_rads() + GZ_OFFSET);
+//  prev_LP_filtered_data = curr_LP_filtered_data;
 }
 
 void loop() {
-  // read the sensor
-  IMU.readSensor();
+  // WITH MOTORS
+  move_forwards();
+  turn_ccw();
+  
+  
+  // WITHOUT MOTORS
+//  // read the sensor
+//  IMU.readSensor();
+//
+//  // Apply LP Filter
+//  t2 = millis();
+//  dt = (t2 - t1)/1000.0; // Convert to seconds
+//  alpha_LP = dt/(RC_LP+dt);
+//
+//  curr_LP_filtered_data = prev_LP_filtered_data + (alpha_LP * (apply_dead_pass_gz(IMU.getGyroZ_rads() + GZ_OFFSET) - prev_LP_filtered_data));
+//  
+//  // Update integrations
+//  omega_z = (curr_LP_filtered_data + prev_LP_filtered_data)/2.0;
+//  theta_z += (omega_z * dt) * GZ_SCALING;
+//  
+//  // Setup parameters for next integration
+//  t1 = t2;
+//
+//  // Set yaw value
+//  yaw = abs(theta_z);
+//  
+//  // display the data (1)
+//  Serial.print("GyroZ: ");  
+//  Serial.print(curr_LP_filtered_data,6);
+//  Serial.print("  "); 
+//  Serial.print("Time in [sec]: ");
+//  Serial.print(t2/1000.0);
+//  Serial.print("  ");
+//  Serial.print("Gyro Yaw in [deg]: ");
+//  Serial.println(yaw/M_PI*180);
 
-  // Filter data
-  t2 = millis();
-  dt = (t2 - t1)/1000.0; // Convert to seconds
-  alpha = dt/(RC+dt);
-  
-  curr_filtered_data[0] = prev_filtered_data[0] + (alpha * (IMU.getAccelX_mss() - prev_filtered_data[0]));
-  curr_filtered_data[1] = prev_filtered_data[1] + (alpha * (IMU.getAccelY_mss() - prev_filtered_data[1]));
-  curr_filtered_data[2] = prev_filtered_data[2] + (alpha * (IMU.getAccelZ_mss() - prev_filtered_data[2]));
-  curr_filtered_data[3] = prev_filtered_data[3] + (alpha * (IMU.getGyroX_rads() - prev_filtered_data[3]));
-  curr_filtered_data[4] = prev_filtered_data[4] + (alpha * (IMU.getGyroY_rads() - prev_filtered_data[4]));
-  curr_filtered_data[5] = prev_filtered_data[5] + (alpha * (IMU.getGyroZ_rads() - prev_filtered_data[5]));
-  
-  // Apply Calibration Offset to Gz Value
-  curr_filtered_data[5] += GZ_OFFSET;
-  
-  // Update integrations
-  a_x = curr_filtered_data[0];
-  a_y = curr_filtered_data[1];
-  v_x += a_x * dt;
-  v_y += a_y * dt;
-  d_x += v_x * dt;
-  d_y += v_y * dt;
-  
-  omega_z = curr_filtered_data[5];
-  theta_z += omega_z * dt;
-  
-  // Setup parameters for next integration
-  t1 = t2;
-
-  // Using Gyroscope and Calibration Scaling
-  yaw = theta_z*GZ_SCALING;
-  
-  // display the data LONG
-  Serial.print("AccelX: ");
-  Serial.print(curr_filtered_data[0],6);
-  Serial.print("  ");
-  Serial.print("AccelY: ");  
-  Serial.print(curr_filtered_data[1],6);
-  Serial.print("  ");
-  Serial.print("AccelZ: ");  
-  Serial.println(curr_filtered_data[2],6);
-  
-  Serial.print("GyroX: ");
-  Serial.print(curr_filtered_data[3],6);
-  Serial.print("  ");
-  Serial.print("GyroY: ");  
-  Serial.print(curr_filtered_data[4],6);
-  Serial.print("  ");
-  Serial.print("GyroZ: ");  
-  Serial.println(curr_filtered_data[5],6);
-
-  Serial.print("MagX: ");  
-  Serial.print(IMU.getMagX_uT(),6);
-  Serial.print("  ");  
-  Serial.print("MagY: ");
-  Serial.print(IMU.getMagY_uT(),6);
-  Serial.print("  ");
-  Serial.print("MagZ: ");  
-  Serial.println(IMU.getMagZ_uT(),6);
-  
-  Serial.print("Temperature in C: ");
-  Serial.println(IMU.getTemperature_C(),6);
-  Serial.println();
-  
-  Serial.print("Time in [sec]: ");
-  Serial.print(t2/1000.0);
-  Serial.print("  ");
-  Serial.print("Gyro Yaw in [deg]: ");
-  Serial.print(yaw/M_PI*180);
-  Serial.print("  ");
-  Serial.print("Accel Position in [cm]: (");
-  Serial.print(d_x*100);
-  Serial.print(", ");
-  Serial.print(d_y*100);
-  Serial.println(")");
-  Serial.println();
-
-//  // display the data SHORT
-//  Serial.print(curr_filtered_data[0],6);
-//  Serial.print("\t");
-//  Serial.print(curr_filtered_data[1],6);
-//  Serial.print("\t");
-//  Serial.print(curr_filtered_data[2],6);
-//  Serial.print("\t");
-//  Serial.print(curr_filtered_data[3],6);
-//  Serial.print("\t");
-//  Serial.print(curr_filtered_data[4],6);
-//  Serial.print("\t");
-//  Serial.print(curr_filtered_data[5],6);
-//  Serial.print("\t");
-//  Serial.print(IMU.getMagX_uT(),6);
-//  Serial.print("\t");
-//  Serial.print(IMU.getMagY_uT(),6);
-//  Serial.print("\t");
-//  Serial.print(IMU.getMagZ_uT(),6);
-//  Serial.print("\t");
-//  Serial.print(IMU.getTemperature_C(),6);
-//  Serial.print("\t");
-//  Serial.println(t2/1000.0);
-
-  // Set up previous filtered data for next run
-  prev_filtered_data[0] = curr_filtered_data[0];
-  prev_filtered_data[1] = curr_filtered_data[1];
-  prev_filtered_data[2] = curr_filtered_data[2];
-  prev_filtered_data[3] = curr_filtered_data[3];
-  prev_filtered_data[4] = curr_filtered_data[4];
-  prev_filtered_data[5] = curr_filtered_data[5];
-  
-  delay(20);
+//  prev_LP_filtered_data = curr_LP_filtered_data;
 }
