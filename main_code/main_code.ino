@@ -437,7 +437,6 @@ void Backup(long dist) {
     Serial.println(ultrasonic_dist_back);                
     delay(100);
   }
-
   
   Stop_Motors();
   Serial.println(" > Done backing up.");
@@ -727,12 +726,24 @@ void ExploreTerrain() {
     }
 
     //keep moving forward until hit objective or go to new tile
+    //front ultrasonic
     int jump_count = 0;
+    int jumped = 0;
+    
+    //back ultrasonic
     int jump_count_back = 0;
+    int jumped_back = 0;
     
     long initial_ultrasonic = ultrasonic_dist_back;
-
-    while((ultrasonic_dist > 8 && abs(initial_ultrasonic - ultrasonic_dist_back) < tile_dist) ||  ultrasonic_dist == 0 || ultrasonic_dist_back == 0) {
+    long initial_ultrasonic_front = ultrasonic_dist;
+    
+    //selects one of the ultrasonic that doesn't have a pit infront of it to use as the distance measurement, to decide which one isn't noise the jump vars are used
+    while(  
+      ((ultrasonic_dist > 8 &&
+    !(((abs(initial_ultrasonic - ultrasonic_dist_back) >= tile_dist) && jumped_back <= jumped) ||
+       (abs(initial_ultrasonic_front - ultrasonic_dist) >= tile_dist) && jumped <= jumped_back)))
+    || ultrasonic_dist == 0 || ultrasonic_dist_back == 0) {
+      
       long old_val = ultrasonic_dist;
       long old_val_back = ultrasonic_dist_back;
       ultrasonic_dist = sr04.Distance();
@@ -741,12 +752,13 @@ void ExploreTerrain() {
       if(abs(old_val - ultrasonic_dist) > 5){
         jump_count++;
         if(jump_count < 5) {
-          Serial.print("too big of jump:   ");
+          Serial.print("too big of jump (front):   ");
           Serial.println(ultrasonic_dist);
           ultrasonic_dist = old_val;                       
         }
         else {
           jump_count = 0;
+          jumped++;
         }
       }
       else {
@@ -756,23 +768,32 @@ void ExploreTerrain() {
       if(abs(old_val_back - ultrasonic_dist_back) > 5){
         jump_count_back++;
         if(jump_count_back < 5) {
-          Serial.print("too big of jump:   ");
+          Serial.print("too big of jump (back):   ");
           Serial.println(ultrasonic_dist_back);
           ultrasonic_dist_back = old_val_back;                       
         }
         else {
           jump_count_back = 0;
+          jumped_back++;
         }
       }
       
       else {
         jump_count_back = 0;
       }
-      Serial.print("  ->");
+      Serial.print("  -> FRONT: ");
+      Serial.print(ultrasonic_dist);                
+      Serial.print("  -> BACK: ");
       Serial.println(ultrasonic_dist_back);                
       delay(100);
+    }       
+
+    //Select the correct ultrasonic to use for measurement distance travelled
+    if(abs(initial_ultrasonic_front - ultrasonic_dist) >= tile_dist && jumped <= jumped_back){
+      ultrasonic_dist_back = ultrasonic_dist;
+      initial_ultrasonic = initial_ultrasonic_front;
     }
-       
+
     Stop_Motors();
     
     //DEBUG
@@ -860,7 +881,6 @@ void ExploreTerrain() {
 }
 
 void Run_Into_Object_Test() {
-  Serial.println("Moving Forward");
   Move_Forward();
   ultrasonic_dist = sr04.Distance();
   
@@ -901,8 +921,8 @@ void Run_Into_Object_Test() {
 void loop() {
   
   //Locate all of the objectives within the grid
-  Run_Into_Object_Test();
-  //ExploreTerrain();
+  //Run_Into_Object_Test();
+  ExploreTerrain();
   //CompleteRemainingTasks();
 
   Serial.println("Done Main Loop");
