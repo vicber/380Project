@@ -48,9 +48,13 @@ void setup() {
   oldState3 = hallState3;
   oldState2 = hallState4;
   oldState3 = hallState5;
+
+  Serial.println("Move");
 }
 
 void loop(){
+  delay(5000);
+  
   // read the state of the hall effect sensor:
   hallState1 = digitalRead(hallPin1);
   hallState2 = digitalRead(hallPin2);
@@ -79,4 +83,5 @@ void loop(){
   oldState3 = hallState3;
   oldState4 = hallState4;
   oldState5 = hallState5;
+  while(1) {}
 }
