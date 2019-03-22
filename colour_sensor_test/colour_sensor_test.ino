@@ -14,11 +14,11 @@ Color Sensor      Arduino
  OE                GND
 */
 
-#define S0 4
-#define S1 5
-#define S2 6
-#define S3 7
-#define sensorOut 8
+#define S0 30
+#define S1 32
+#define S2 34
+#define S3 36
+#define sensorOut 28
 // Vin 5V 
 int red = 0;
 int blue = 0;
@@ -47,9 +47,9 @@ void loop() {
   red = pulseIn(sensorOut, LOW);
   // red = map(red, 230, 640, 255, 0);
   // Printing the value on the serial monitor
-  Serial.print("R= ");//printing name
+  //Serial.print("R= ");//printing name
   Serial.print(red);//printing RED color frequency
-  Serial.print("  ");
+  Serial.print(" \t");
   delay(100);
   
   // Setting Green filtered photodiodes to be read
@@ -59,9 +59,9 @@ void loop() {
   green = pulseIn(sensorOut, LOW);
   // green = map(green, 430, 1090, 255, 0);
   // Printing the value on the serial monitor
-  Serial.print("G= ");//printing name
+  // Serial.print("G= ");//printing name
   Serial.print(green);//printing RED color frequency
-  Serial.print("  ");
+  Serial.print(" \t");
   delay(100);
   
   // Setting Blue filtered photodiodes to be read
@@ -71,22 +71,25 @@ void loop() {
   blue = pulseIn(sensorOut, LOW);
   // blue = map(blue, 200, 1132, 255, 0);
   // Printing the value on the serial monitor
-  Serial.print("B= ");//printing name
+  // Serial.print("B= ");//printing name
   Serial.print(blue);//printing RED color frequency
-  Serial.println("  ");
-
-  /*
-  total = red + blue + green;
-  if(total > 150 && double(red+green)/total >= 0.70 && double(green) / total > 0.38) {
-    Serial.print("Detect Yellow House");
-  }
-  else if(total > 150 && double(red+blue)/total >= 0.75 && double(blue) / total > 0.40){
-    Serial.print("Detect Red House");
-  }
-  else {
-    Serial.print("Nothing read");
-  }
-  Serial.println("  ");*/
-  
+  Serial.print("\t");
   delay(100);
+
+  Serial.println(millis()/1000.0);
+  delay(100);
+  
+//  total = red + blue + green;
+//  if(total > 150 && double(red+green)/total >= 0.70 && double(green) / total > 0.38) {
+//    Serial.print("Detect Yellow House");
+//  }
+//  else if(total > 150 && double(red+blue)/total >= 0.75 && double(blue) / total > 0.40){
+//    Serial.print("Detect Red House");
+//  }
+//  else {
+//    Serial.print("Nothing read");
+//  }
+//  Serial.println("  ");
+//  
+//  delay(100);
 }
