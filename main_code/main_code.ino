@@ -11,7 +11,6 @@ bool wall_reached = false;
 /*
  * IMU STUFF
  */
-#define SPEED_DIFF 35
 double calculated_speed;
 int set_PID_max = 1;
 double PID_max;
@@ -48,16 +47,17 @@ double dt;
 //Test LED
 int redPin= 8;
 int greenPin = 7;
-int bluePin = 6;
+int yellowPin = 6;
 
 //Motors
+#define SPEED_DIFF 0
 #define ENABLE_M1 3
-#define DIR_A_M1 4
-#define DIR_B_M1 5
+#define DIR_A_M1 5
+#define DIR_B_M1 4
 
 #define ENABLE_M2 11
-#define DIR_A_M2 13
-#define DIR_B_M2 12
+#define DIR_A_M2 12
+#define DIR_B_M2 13
 const int min_fwd_speed = 220;
 const int min_turn_speed = 210;
 int speed;
@@ -113,7 +113,7 @@ const long tile_dist = 30;
 
 char terrain_map[6][6];
 char directions[] = {'N', 'W', 'S', 'E'};
-int curr_direction_index = 3; //start facing north
+int curr_direction_index = 3; //start facing east
 int curr_row = 5;
 int curr_col = 3;
 
@@ -275,15 +275,16 @@ void xTurn_CW() {
 
 void Move_Forward() {
   
-  Sprintln("Moving Forward");
-  /*speed = min_fwd_speed;
+  //Sprintln("Moving Forward");
+  speed = min_fwd_speed;
   analogWrite(ENABLE_M1, speed);
   analogWrite(ENABLE_M2, speed  - SPEED_DIFF);
   
   digitalWrite(DIR_A_M1, LOW);
   digitalWrite(DIR_A_M2, LOW);
   digitalWrite(DIR_B_M1, HIGH);
-  digitalWrite(DIR_B_M2, HIGH);*/
+  digitalWrite(DIR_B_M2, HIGH);
+  
 }
 
 void setup() {
@@ -315,7 +316,7 @@ void setup() {
   //LED
   pinMode(redPin, OUTPUT);
   pinMode(greenPin, OUTPUT);
-  pinMode(bluePin, OUTPUT);
+  pinMode(yellowPin, OUTPUT);
   
   //Flame
   pinMode(FLAME, INPUT);
@@ -380,12 +381,6 @@ void Print_Map() {
     Sprintln("");
   }
   Sprintln();
-}
-
-void setLEDColor(int redValue, int greenValue, int blueValue) {
-  analogWrite(redPin, redValue);
-  analogWrite(greenPin, greenValue);
-  analogWrite(bluePin, blueValue);
 }
 
 void Move_Backward() {
@@ -495,6 +490,15 @@ bool DetectMagnet() {
 
   if(numDetects >= 2) {
     Sprintln("Magnet Detected");
+
+    digitalWrite(redPin, HIGH);
+    digitalWrite(greenPin, HIGH);
+    digitalWrite(yellowPin, HIGH); 
+    delay(5000);
+    digitalWrite(redPin, LOW);
+    digitalWrite(greenPin, LOW);
+    digitalWrite(yellowPin, LOW); 
+    
     return true;
   }
   else {
@@ -575,9 +579,9 @@ void Handle_Object() {
   //ReadColour();
   if(Detect_Yellow_House()) {
     Sprintln("  > Detect Yellow House: Found lost person");
-    setLEDColor(0, 0, 255); // Yellow Color
-    delay(2000);
-    setLEDColor(255, 255, 255); // Off
+    digitalWrite(yellowPin, HIGH); // Yellow Color
+    delay(5000);
+    digitalWrite(yellowPin, LOW);
     foundPerson = true;
     task_status[FIND_LOST_PERSON] = 1;
     terrain_map[curr_row][curr_col] = 'P';
@@ -587,9 +591,9 @@ void Handle_Object() {
   }
   else if(Detect_Red_House()){
     Sprintln("  > Detect Red House: Group of Survivors");
-    setLEDColor(0, 255, 0); // Purple Color
-    delay(2000);
-    setLEDColor(255, 255, 255); // Off
+    digitalWrite(redPin, HIGH); // Red Color
+    delay(5000);
+    digitalWrite(redPin, LOW);
     foundGroup = true;
     terrain_map[curr_row][curr_col] = 'G';
     task_location[FEED_SURVIVORS][0] = curr_row;
@@ -603,32 +607,23 @@ void Handle_Object() {
   }
   else if(analogRead(FLAME) != 0) {
     Sprintln("  > Detect Lit Candle");
-    setLEDColor(0, 255, 255); // Red Color
+    digitalWrite(redPin, HIGH); // Red Color
+    delay(2000);
     foundCandle = true;
     terrain_map[curr_row][curr_col] = 'C';
     task_location[FIRE_OFF][0] = curr_row;
     task_location[FIRE_OFF][1] = curr_col;
     
     Put_Out_Fire();
-    
-    setLEDColor(0, 255, 255); // Green Color
-    delay(700);
-    setLEDColor(0, 0, 0); // Turn LED off
-    delay(700);
-    setLEDColor(0, 255, 255); // Green Color
-    delay(700);
-    setLEDColor(0, 255, 255); // Green Color
-    delay(700);
-    setLEDColor(0, 0, 0); // Turn LED off
-    delay(700);
+    digitalWrite(redPin, LOW);
+    digitalWrite(greenPin, HIGH); 
+    delay(5000);
+    digitalWrite(greenPin, LOW); 
     
     task_status[FIRE_OFF] = 1;
   }
   else if(DetectMagnet()) {
     Sprintln("  > Detect Food");
-    setLEDColor(0, 255, 255); // cyan colour
-    delay(2000);
-    setLEDColor(255, 255, 255); // Turn LED off
     terrain_map[curr_row][curr_col] = 'F';
     task_location[COLLECT_FOOD][0] = curr_row;
     task_location[COLLECT_FOOD][1] = curr_col;
@@ -763,8 +758,18 @@ void ExploreTerrain() {
 
   int curr_search_layer  = 0; //0 is the outer layer, 2 is the most inner layer
   while(!FoundEverything()) {
-    wall_reached = false;
+    
+    if(wall_reached) {
+      Sprintln("Already in front of wall, need to turn");
+      Turn_CCW;
+      wall_reached = false;
+      continue;
+    }
+    
     Sprintln("Explore Terrain Loop");
+    
+    
+    
     Sprintln("Moving Forward..");
     Sprint("  ->");
     
@@ -792,9 +797,9 @@ void ExploreTerrain() {
     long initial_ultrasonic = ultrasonic_dist_back;
     long initial_ultrasonic_front = ultrasonic_dist;
     
-    //selects one of the ultrasonic that doesn't have a pit infront of it to use as the distance measurement, to decide which one isn't noise the jump vars are used
+    //selects one of the ultrasonic that doesn't have a pit infront of it to use as the distance measurement, to decide which one isn't noisy the jump vars are used
     while(  
-      (((ultrasonic_dist > 8 && !Reach_Wall()) &&
+      (((ultrasonic_dist > 8) &&
     !(((abs(initial_ultrasonic - ultrasonic_dist_back) >= tile_dist) && jumped_back <= jumped) ||
        (abs(initial_ultrasonic_front - ultrasonic_dist) >= tile_dist) && jumped <= jumped_back)))
     || ultrasonic_dist == 0 || ultrasonic_dist_back == 0) {
@@ -844,8 +849,9 @@ void ExploreTerrain() {
     }       
 
     //Move a tile fully to ensure 30cm dist was travelled
-    if(wall_reached) {
-      if(abs(initial_ultrasonic_front - ultrasonic_dist) >= tile_dist && jumped <= jumped_back){
+    if(Reach_Wall()) {
+      Sprintln("Moving to ensure 30cm dist is travelled");
+      if(abs(initial_ultrasonic_front - ultrasonic_dist) < tile_dist && jumped <= jumped_back){
         while(abs(initial_ultrasonic_front - ultrasonic_dist) < 30 || ultrasonic_dist == 0) {
           ultrasonic_dist = sr04.Distance();
           delay(50);  
@@ -857,6 +863,7 @@ void ExploreTerrain() {
           delay(50);  
         }        
       }
+      Sprintln("Moved to ensure 30cm dist");
     }
     
     //Select the correct ultrasonic to use for measurement distance travelled
@@ -901,11 +908,6 @@ void ExploreTerrain() {
       }
       else{
         Sprintln("Don't need to explore tile to the right");  
-      }
-
-      //TURN CCW IF WALL REACHED
-      if(wall_reached) {
-        Turn_CCW();
       }
       
       //Change search direction if needed, i.e. if the outer layer has been searched now search the inner layer
@@ -1001,16 +1003,20 @@ void loop() {
   if(DetectMagnet()) {
     Sprintln("DETECTED!");
     Stop_Motors();
-    setLEDColor(0, 255, 255); // Green Color
+    //setLEDColor(0, 255, 255); // Green Color
     delay(20000);
   }
-  delay(50);
+  delay(500);
+  digitalWrite(redPin, LOW);
+  digitalWrite(greenPin, LOW);
+  digitalWrite(yellowPin, LOW);
   */
   
   ExploreTerrain();
   //CompleteRemainingTasks();
-  Sprintln("Done Main Loop");
+  //Sprintln("Done Main Loop");
   delay(40000); //delay 20 sec
+  
 }
 
 
