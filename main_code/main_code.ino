@@ -2,6 +2,8 @@
 #include "MPU9250.h"
 #include <PID_v1.h>
 
+bool wall_reached = false;
+
 /*
  * IMU STUFF
  */
@@ -40,10 +42,9 @@ double dt;
  */
 
 //Test LED
-#define TESTLED 13
-int redPin= 7;
-int greenPin = 6;
-int bluePin = 5;
+int redPin= 8;
+int greenPin = 7;
+int bluePin = 6;
 
 //Motors
 #define ENABLE_M1 3
@@ -51,14 +52,16 @@ int bluePin = 5;
 #define DIR_B_M1 5
 
 #define ENABLE_M2 11
-#define DIR_A_M2 12
-#define DIR_B_M2 13
+#define DIR_A_M2 13
+#define DIR_B_M2 12
 const int min_fwd_speed = 220;
 const int min_turn_speed = 210;
 int speed;
 
-#define TRIG_PIN 14
-#define ECHO_PIN 15
+#define TRIG_PIN 15
+#define ECHO_PIN 14
+#define TRIG_PIN_BACK 24
+#define ECHO_PIN_BACK 26
 
 //Colour Sensor Stuff
 #define S0 30
@@ -66,17 +69,7 @@ int speed;
 #define S2 34
 #define S3 36
 #define sensorOut 28
-const int loRed = 146;
-const int hiRed = 60;
-const int loBlue = 59; 
-const int hiBlue = 378;
-const int loGreen = 277;
-const int hiGreen = 121;
 const int minRGB = 150; //used to ensure that there is enough RGB value to sensibly use percentage method
-const double yellowHouse_RG = 0.70; //percent of RG over RGB
-const double yellowHouse_G = 0.38;  //percent of G over RGB
-const double redHouse_RB = 0.75; //percent of RB over RGB
-const double redHouse_B = 0.40;  //percent of B over RGB
 
 //Flame
 #define FLAME A7
@@ -110,15 +103,15 @@ int totalRGB = 0;
 //Ultrasonic Sensor
 SR04 sr04 = SR04(ECHO_PIN,TRIG_PIN);
 long ultrasonic_dist;
-SR04 sr04_back = SR04(ECHO_PIN,TRIG_PIN);
+SR04 sr04_back = SR04(ECHO_PIN_BACK,TRIG_PIN_BACK);
 long ultrasonic_dist_back;
 const long tile_dist = 30;
 
 char terrain_map[6][6];
 char directions[] = {'N', 'W', 'S', 'E'};
-int curr_direction_index = 0; //start facing north
+int curr_direction_index = 3; //start facing north
 int curr_row = 5;
-int curr_col = 2;
+int curr_col = 3;
 
 //Flags whether or not an objective has been located or not, used in the Explore_Terrain algorithm
 bool foundFood = false;
@@ -198,7 +191,7 @@ void update_yaw() {
   Serial.println(speed);
 }
 
-void Turn_CCW() {
+void xTurn_CCW() {
   Serial.println("Turning CCW...");
 
   // Set initial parameters
@@ -230,11 +223,14 @@ void Turn_CCW() {
   digitalWrite(DIR_A_M1, LOW);
   digitalWrite(DIR_B_M2, LOW);
   
-  Serial.println("Done turing CW");
+  Serial.println("Done turing CCW");
+  curr_direction_index = (curr_direction_index + 1) % 4; //Set direction index to CCW
+  Serial.print("Current Direction:");
+  Serial.println(directions[curr_direction_index]);
   delay(2000);
 }
 
-void Turn_CW() {
+void xTurn_CW() {
   Serial.println("Turning CW...");
 
   // Set initial parameters
@@ -267,23 +263,28 @@ void Turn_CW() {
   digitalWrite(DIR_B_M2, LOW);
 
   Serial.println("Done turing CW");
+  curr_direction_index = (curr_direction_index + 3) % 4; //Set direction index to CW
+  Serial.print("Current Direction:");
+  Serial.println(directions[curr_direction_index]);
   delay(2000);
 }
 
 void Move_Forward() {
-  speed = min_fwd_speed;
+  
+  Serial.println("Moving Forward");
+  /*speed = min_fwd_speed;
   analogWrite(ENABLE_M1, speed);
   analogWrite(ENABLE_M2, speed  - SPEED_DIFF);
   
   digitalWrite(DIR_A_M1, LOW);
   digitalWrite(DIR_A_M2, LOW);
   digitalWrite(DIR_B_M1, HIGH);
-  digitalWrite(DIR_B_M2, HIGH);
+  digitalWrite(DIR_B_M2, HIGH);*/
 }
 
 void setup() {
   Serial.begin(9600);
-  
+  /*
   //IMU/PID STUFF
   // serial to display data
   while(!Serial) {}
@@ -305,10 +306,9 @@ void setup() {
   IMU.setDlpfBandwidth(MPU9250::DLPF_BANDWIDTH_20HZ);
   // setting SRD to 19 for a 50 Hz update rate
   IMU.setSrd(19);
-  
+  */
 
-  //TEST LED
-  pinMode(TESTLED, OUTPUT);
+  //LED
   pinMode(redPin, OUTPUT);
   pinMode(greenPin, OUTPUT);
   pinMode(bluePin, OUTPUT);
@@ -489,49 +489,50 @@ bool DetectMagnet() {
   oldState4 = hallState4;
   oldState5 = hallState5;
 
-  if(numDetects >= 1) {
+  if(numDetects >= 2) {
     Serial.println("Magnet Detected");
     return true;
   }
   else {
-    Serial.println("No Magnet Detected");
+    //Serial.println("No Magnet Detected");
     return false;
   }
 }
 
 void ReadColour() {
   // Setting red filtered photodiodes to be read
-  Serial.print("  > Read_Colour: ");
+  //Serial.print("  > Read_Colour: ");
   digitalWrite(S2,LOW);
   digitalWrite(S3,LOW);
   red = pulseIn(sensorOut, LOW);
-  red = map(red, loRed, hiRed, 0, 255);
+  //red = map(red, loRed, hiRed, 0, 255);
   delay(100);
   
   // Setting Green filtered photodiodes to be read
   digitalWrite(S2,HIGH);
   digitalWrite(S3,HIGH);
   green = pulseIn(sensorOut, LOW);
-  green = map(green, loGreen, hiGreen, 0, 255);
+  //green = map(green, loGreen, hiGreen, 0, 255);
   delay(100);
   
   // Setting Blue filtered photodiodes to be read
   digitalWrite(S2,LOW);
   digitalWrite(S3,HIGH);
   blue = pulseIn(sensorOut, LOW);
-  blue = map(blue, loBlue, hiBlue, 0, 255);
-  Serial.print("R: ");
+  //blue = map(blue, loBlue, hiBlue, 0, 255);
+  /*Serial.print("R: ");
   Serial.print(red);
   Serial.print(" G: ");
   Serial.print(green);
   Serial.print(" B: ");
   Serial.println(blue);
+  */
   totalRGB = red + blue + green;
 }
 
 bool Detect_Yellow_House() {
-  //ReadColour();
-  if(totalRGB > minRGB && double(red+green)/totalRGB >= yellowHouse_RG && double(green) / totalRGB > yellowHouse_G) {
+  ReadColour();
+  if(totalRGB < 3500 && red < blue && red < green && green < blue && double(green)/totalRGB > 0.24 && double(green)/totalRGB < 0.44) {
     return true;
   }
   else {
@@ -540,8 +541,8 @@ bool Detect_Yellow_House() {
 }
 
 bool Detect_Red_House() {
-  //ReadColour();
-  if(totalRGB > minRGB && double(red+blue)/totalRGB >= redHouse_RB && double(blue) / totalRGB > redHouse_B) {
+  ReadColour();
+  if(totalRGB < 4500 && green > blue && green > red && double(green)/double(green+red) > 0.45) {
     return true;
   }
   else {
@@ -553,20 +554,21 @@ void Put_Out_Fire() {
   Move_Forward();
   ultrasonic_dist = sr04.Distance();
   while(analogRead(FLAME)!=0) {
+    delay(50);
   }
-  delay(250); //go a bit more in
+  delay(200); //go a bit more in
   Stop_Motors();
   delay(1500);
   
   //Backup the distance we travelled
-  Backup(ultrasonic_dist - sr04.Distance());
+  Backup(abs(ultrasonic_dist - sr04.Distance()));
   Serial.println("  > Candle extinguished");
   
 }
 
 void Handle_Object() {
   Serial.println(" > Handle_Object");
-  ReadColour();
+  //ReadColour();
   if(Detect_Yellow_House()) {
     Serial.println("  > Detect Yellow House: Found lost person");
     setLEDColor(0, 0, 255); // Yellow Color
@@ -602,10 +604,20 @@ void Handle_Object() {
     terrain_map[curr_row][curr_col] = 'C';
     task_location[FIRE_OFF][0] = curr_row;
     task_location[FIRE_OFF][1] = curr_col;
+    
     Put_Out_Fire();
-    setLEDColor(255, 0, 255); // Green Color
-    delay(2000);
-    setLEDColor(255, 255, 255); // Turn LED off
+    
+    setLEDColor(0, 255, 255); // Green Color
+    delay(700);
+    setLEDColor(0, 0, 0); // Turn LED off
+    delay(700);
+    setLEDColor(0, 255, 255); // Green Color
+    delay(700);
+    setLEDColor(0, 255, 255); // Green Color
+    delay(700);
+    setLEDColor(0, 0, 0); // Turn LED off
+    delay(700);
+    
     task_status[FIRE_OFF] = 1;
   }
   else if(DetectMagnet()) {
@@ -698,6 +710,44 @@ bool Layer_Searched(int n){
    return true;
 }
 
+bool Reach_Wall() {
+  long dist = sr04.Distance();
+  if(dist < 9 && analogRead(FLAME)==0 && !Detect_Yellow_House() && !Detect_Yellow_House()) {
+    Serial.println("Reach Wall!");
+    wall_reached = true;
+    return true;
+  }
+  else {
+    return false;
+  }
+}
+
+bool Need_To_Explore_Right() {
+
+char dir = directions[curr_direction_index];
+if(dir == 'N') {
+  if(curr_col < 5 && terrain_map[curr_row][curr_col + 1] == '0') {
+    return true;
+  }
+}
+else if(dir == 'S') {
+  if(curr_col > 0 && terrain_map[curr_row][curr_col - 1] == '0') {
+    return true;
+  }
+}
+else if(dir == 'W') {
+  if(curr_row > 0 && terrain_map[curr_row - 1][curr_col] == '0') {
+    return true;
+  }
+}
+else if(dir == 'E') {
+  if(curr_row < 5 && terrain_map[curr_row + 1][curr_col] == '0') {
+    return true;
+  }
+}
+return false;
+}
+
 void ExploreTerrain() {
   /*
    * Explore terrain and update the terrain map
@@ -709,6 +759,7 @@ void ExploreTerrain() {
 
   int curr_search_layer  = 0; //0 is the outer layer, 2 is the most inner layer
   while(!FoundEverything()) {
+    wall_reached = false;
     Serial.println("Explore Terrain Loop");
     Serial.println("Moving Forward..");
     Serial.print("  ->");
@@ -719,7 +770,7 @@ void ExploreTerrain() {
     
     Serial.println(ultrasonic_dist);
     //Deal with ultrasonic noise
-    while(ultrasonic_dist < 9 || ultrasonic_dist_back < 9) {
+    while(ultrasonic_dist < 2 || ultrasonic_dist_back < 2) {
       ultrasonic_dist = sr04.Distance();
       ultrasonic_dist_back = sr04_back.Distance();
       delay(100);
@@ -739,7 +790,7 @@ void ExploreTerrain() {
     
     //selects one of the ultrasonic that doesn't have a pit infront of it to use as the distance measurement, to decide which one isn't noise the jump vars are used
     while(  
-      ((ultrasonic_dist > 8 &&
+      (((ultrasonic_dist > 8 && !Reach_Wall()) &&
     !(((abs(initial_ultrasonic - ultrasonic_dist_back) >= tile_dist) && jumped_back <= jumped) ||
        (abs(initial_ultrasonic_front - ultrasonic_dist) >= tile_dist) && jumped <= jumped_back)))
     || ultrasonic_dist == 0 || ultrasonic_dist_back == 0) {
@@ -788,12 +839,27 @@ void ExploreTerrain() {
       delay(100);
     }       
 
+    //Move a tile fully to ensure 30cm dist was travelled
+    if(wall_reached) {
+      if(abs(initial_ultrasonic_front - ultrasonic_dist) >= tile_dist && jumped <= jumped_back){
+        while(abs(initial_ultrasonic_front - ultrasonic_dist) < 30 || ultrasonic_dist == 0) {
+          ultrasonic_dist = sr04.Distance();
+          delay(50);  
+        }
+      }
+      else {
+        while(abs(initial_ultrasonic - ultrasonic_dist_back) < 30 || ultrasonic_dist_back == 0) {
+          ultrasonic_dist_back = sr04.Distance();
+          delay(50);  
+        }        
+      }
+    }
+    
     //Select the correct ultrasonic to use for measurement distance travelled
     if(abs(initial_ultrasonic_front - ultrasonic_dist) >= tile_dist && jumped <= jumped_back){
       ultrasonic_dist_back = ultrasonic_dist;
       initial_ultrasonic = initial_ultrasonic_front;
     }
-
     Stop_Motors();
     
     //DEBUG
@@ -805,7 +871,7 @@ void ExploreTerrain() {
     delay(5000);
   
     //Case if we just moved a tile
-    if(dist_travelled >= tile_dist) {
+    if(dist_travelled >= tile_dist || wall_reached) {
       Serial.println("Moved a tile:");
       Update_Position(true);
   
@@ -824,14 +890,20 @@ void ExploreTerrain() {
       }
   
       //Do we need to handle object to the right?
-      if(curr_col < 5 && terrain_map[curr_row][curr_col + 1] == '0') {
+      if(Need_To_Explore_Right()){
         Serial.println("Need to explore tile to the right:");
         Turn_CW();
-        curr_direction_index += 3; //Set direction index to CW
-        Stop_Motors();
+        Stop_Motors();        
       }
-      Serial.println("Don't need to explore tile to the right");
-  
+      else{
+        Serial.println("Don't need to explore tile to the right");  
+      }
+
+      //TURN CCW IF WALL REACHED
+      if(wall_reached) {
+        Turn_CCW();
+      }
+      
       //Change search direction if needed, i.e. if the outer layer has been searched now search the inner layer
       if(Layer_Searched(curr_search_layer)) {
         Serial.println("Changing search layer");
@@ -844,8 +916,7 @@ void ExploreTerrain() {
     else if(ultrasonic_dist <= 8) {
       Serial.println("Ran into something:");
       
-      if(analogRead(FLAME)==0 && !(totalRGB > 150 && double(red+blue)/totalRGB >= 0.75 && double(blue) / totalRGB > 0.40)
-      && !(totalRGB > 150 && double(red+green)/totalRGB >= 0.70 && double(green) / totalRGB > 0.38)) {
+      if(Reach_Wall()) {
         Serial.println("Detected a wall");
         //if a wall
         //Back up the amount we went forward
@@ -921,16 +992,22 @@ void Run_Into_Object_Test() {
 void loop() {
   
   //Locate all of the objectives within the grid
-  //Run_Into_Object_Test();
+  /*
+  Move_Forward();
+  if(DetectMagnet()) {
+    Serial.println("DETECTED!");
+    Stop_Motors();
+    setLEDColor(0, 255, 255); // Green Color
+    delay(20000);
+  }
+  delay(50);
+  */
+  
   ExploreTerrain();
   //CompleteRemainingTasks();
-
   Serial.println("Done Main Loop");
-  delay(20000); //delay 20 sec
+  delay(40000); //delay 20 sec
 }
-
-
-
 
 
 
@@ -1146,7 +1223,7 @@ void CompleteRemainingTasks() {
 }
 */
 
-void Turn_CW_Test() {
+void Turn_CW() {
   /*
   digitalWrite(DIR_A_M1, LOW);
   digitalWrite(DIR_A_M2, HIGH);
@@ -1157,11 +1234,14 @@ void Turn_CW_Test() {
   Stop_Motors();
   */
   Serial.println("> Turn_CW_Test");
+  curr_direction_index = (curr_direction_index + 3) % 4; //Set direction index to CW
+  Serial.print("Current Direction:");
+  Serial.println(directions[curr_direction_index]);
   delay(5000); 
   Stop_Motors();  
 }
 
-void Turn_CCW_Test() {
+void Turn_CCW() {
   /*
   digitalWrite(DIR_A_M1, HIGH);
   digitalWrite(DIR_A_M2, LOW);
@@ -1172,6 +1252,9 @@ void Turn_CCW_Test() {
   Stop_Motors();
   */
   Serial.println("> Turn_CCW_Test");
+  curr_direction_index = (curr_direction_index + 1) % 4; //Set direction index to CCW
+  Serial.print("Current Direction:");
+  Serial.println(directions[curr_direction_index]);
   delay(5000); 
   Stop_Motors();
 }
