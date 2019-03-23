@@ -46,7 +46,7 @@ int curr_pos[2] = {START_ROW, START_COL};
 
 DIRECTION curr_dir = EAST; // Assuming we start facing to the right
 
-#define DIST_ONE_TILE   19
+#define DIST_ONE_TILE   23
 // 1ft is slightly over 30cm
 
 #define DIST_TO_OBSTACLE  5
@@ -131,6 +131,8 @@ MPU9250 IMU(Wire,0x68);
 int imu_status;
 double yaw, desired_yaw; // DEGREES
 
+#define NUM_DEGREES_TURN    85.0
+
 // Gyroscope parameters --------------------------------------
 double omega_z; // RAD/SEC
 double theta_z; // RAD
@@ -168,7 +170,7 @@ SR04 sr04 = SR04(ECHO_PIN,TRIG_PIN);
 long dist_travelled; // CM
 long prev_dist, curr_dist; // CM
 
-#define MAX_DIST_DIFF 50
+#define MAX_DIST_DIFF 30
 
 // Hall effect sensor parameters -----------------------------
 #define HALL_EFFECT_PIN1  53
@@ -184,6 +186,8 @@ int old_hall_effect_states[NUM_HALL_EFFECT_SENSORS];
 
 // Flame sensor parameters -----------------------------------
 #define FLAME_SENSOR_PIN  A7
+
+#define FLAME_SENSOR_THRESHOLD  5
 
 // Colour sensor parameters ----------------------------------
 #define COLOUR_SENSOR_PIN_S0   30
@@ -316,6 +320,8 @@ long update_dist_travelled() {
 //  Serial.print("Current distance: ");
 //  Serial.println(curr_dist);
   if (abs(curr_dist - prev_dist) < MAX_DIST_DIFF) {
+    Serial.println(dist_travelled);
+    Serial.println(prev_dist-curr_dist);
     dist_travelled = dist_travelled + (prev_dist - curr_dist);
     prev_dist = curr_dist;
   }
@@ -403,9 +409,11 @@ void handle_house(int house_id){
 }
 
 int detect_flame(){
-  int detect_flame = analogRead(FLAME_SENSOR_PIN);
-  if (detect_flame) {
+  int detect_flame;
+  int flame_sensor_val = analogRead(FLAME_SENSOR_PIN);
+  if (flame_sensor_val > FLAME_SENSOR_THRESHOLD) {
     Serial.println("Detecting flame!!!");
+    detect_flame = 1;
     tasks[PUT_OUT_FIRE].obj_location[ROW_INDEX] = curr_pos[ROW_INDEX];
     tasks[PUT_OUT_FIRE].obj_location[COL_INDEX] = curr_pos[COL_INDEX];
     tasks[PUT_OUT_FIRE].obj_location_known = 1;
@@ -416,6 +424,7 @@ int detect_flame(){
     Serial.println(")");
   } else {
     Serial.println("Flame not detected.");
+    detect_flame = 0;
   }
   return detect_flame;
 }
@@ -433,7 +442,7 @@ long handle_flame(){
   digitalWrite(DIR_B_M1, LOW);
   digitalWrite(DIR_B_M2, LOW);
 
-  while (detect_flame()){
+  while (detect_flame() == 1){
     update_dist_travelled();
   }
 
@@ -557,8 +566,6 @@ int move_fwd(int dist){
     update_dist_travelled();
   }
 
-//  delay(1000);
-
   digitalWrite(DIR_A_M1, LOW);
   digitalWrite(DIR_A_M2, LOW);
 
@@ -586,7 +593,7 @@ int move_fwd(int dist){
 
   if (curr_dist <= DIST_TO_OBSTACLE){
     Serial.println("Object in front. Evaluating...");
-    if (detect_flame()){
+    if (detect_flame() == 1){
       Serial.println("Detected flame (move_fwd())...");
       extra_dist_travelled = handle_flame();
       move_bwd(orig_dist_travelled+extra_dist_travelled);
@@ -631,7 +638,7 @@ void turn(TURN_DIRECTION turn_dir){
   motor_speed = MIN_TURN_SPEED;
   
   // Initialize PID Parameters
-  desired_yaw = 83.0; // 81 degrees
+  desired_yaw = NUM_DEGREES_TURN;
 //  turnPID.SetMode(AUTOMATIC); // Turn the PID on
 //  turnPID.SetTunings(Kp, Ki, Kd);
 
@@ -1120,6 +1127,13 @@ void loop() {
   // Actual main code
   // Explore terrain
   while(located_all_objectives() == 0){
+    // First check if we are facing a wall. If yes then turn.
+    if (curr_dir == NORTH && curr_pos[ROW_INDEX] == 0 ||
+        curr_dir == WEST && curr_pos[COL_INDEX] == 0 ||
+        curr_dir == SOUTH && curr_pos[ROW_INDEX] == 5 ||
+        curr_dir == EAST && curr_pos[COL_INDEX] == 5){
+      turn(CCW); 
+    }
     obstacle_ahead = move_fwd(DIST_ONE_TILE);
     move_to_next_layer = all_tiles_in_layer_explored();
     if (obstacle_ahead == 1){

@@ -6,7 +6,7 @@
 #define RED_PIN 7
 #define GREEN_PIN 8
 #define BLUE_PIN 9
-#define TESTLED 13
+//#define TESTLED 13
 
 int DISPLAY_TIME = 10;  // In milliseconds
 
@@ -23,7 +23,7 @@ void setup() {
   Serial.begin(9600);
   
   pinMode(FLAME_1, INPUT);
-  pinMode(FLAME_2, INPUT);
+//  pinMode(FLAME_2, INPUT);
   pinMode(TESTLED,OUTPUT);
 
   pinMode(RED_PIN, OUTPUT);
@@ -34,33 +34,35 @@ void setup() {
 
   //showSpectrum();
 
-  digitalWrite(RED_PIN, LOW);
-  digitalWrite(GREEN_PIN, LOW);
-  digitalWrite(BLUE_PIN, LOW);
-  digitalWrite(TESTLED,LOW);
+//  digitalWrite(RED_PIN, LOW);
+//  digitalWrite(GREEN_PIN, LOW);
+//  digitalWrite(BLUE_PIN, LOW);
+//  digitalWrite(TESTLED,LOW);
 }
 
 void loop() {
   flameReading_1 = analogRead(FLAME_1);
-  flameReading_2 = analogRead(FLAME_2);
+//  flameReading_2 = analogRead(FLAME_2);
   Serial.print("sensor1 ");
   Serial.print(flameReading_1);
-  Serial.print("\tsensor2 ");
-  Serial.println(flameReading_2);
+//  Serial.print("\tsensor2 ");
+//  Serial.println(flameReading_2);
   /*918~919 is the baseline when the flame sensor starts to detetect the flame
   * Threshold is 918
   */
 
-  if(flameReading_1==0 && flameReading_2 == 0){
-    digitalWrite(TESTLED,LOW);
-    digitalWrite(RED_PIN, LOW);
-    digitalWrite(GREEN_PIN, LOW);
-    digitalWrite(BLUE_PIN, LOW);
+  if(flameReading_1==0){
+//    digitalWrite(TESTLED,LOW);
+//    digitalWrite(RED_PIN, LOW);
+//    digitalWrite(GREEN_PIN, LOW);
+//    digitalWrite(BLUE_PIN, LOW);
+    Serial.println("No flame");
   }
   else {
     //mainColors();
     //showSpectrum();
-    digitalWrite(TESTLED,HIGH);
+//    digitalWrite(TESTLED,HIGH);
+    Serial.println("Flame");
   }
 }
 
