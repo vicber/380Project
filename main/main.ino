@@ -46,11 +46,11 @@ int curr_pos[2] = {START_ROW, START_COL};
 
 DIRECTION curr_dir = EAST; // Assuming we start facing to the right
 
-#define DIST_ONE_TILE   25
+#define DIST_ONE_TILE   19
 // 1ft is slightly over 30cm
 
-#define DIST_TO_OBSTACLE  12
-// Stop when obstacle is 5cm ahead
+#define DIST_TO_OBSTACLE  5
+// Stop when obstacle is 8cm ahead
 
 // Tile traversal reference array
 int arr_n_r[3][2] = {{5, 2}, {3, 1}, {1, 0}};
@@ -123,7 +123,7 @@ Task tasks[NUM_TASKS];
 int motor_speed;
 
 #define SPEED_DIFF  28
-#define SPEED_REDUCTION_FOR_HANDLING_FLAME  30
+#define SPEED_REDUCTION_FOR_HANDLING_FLAME  100
 
 // IMU parameters --------------------------------------------
 // an MPU9250 object with the MPU-9250 sensor on I2C bus 0 with address 0x68
@@ -206,19 +206,23 @@ int old_hall_effect_states[NUM_HALL_EFFECT_SENSORS];
 //#define YELLOW_HOUSE_G_MAX_PER 0.44
 //#define RED_HOUSE_G_DIV_GR_PER 0.45
 
-#define YELLOW_HOUSE_R_MIN  0
-#define YELLOW_HOUSE_R_MAX  1000
-#define YELLOW_HOUSE_G_MIN  500
-#define YELLOW_HOUSE_G_MAX  1500
-#define YELLOW_HOUSE_B_MIN  1000
-#define YELLOW_HOUSE_B_MAX  2000
+//#define YELLOW_HOUSE_R_MIN  0
+//#define YELLOW_HOUSE_R_MAX  1000
+//#define YELLOW_HOUSE_G_MIN  500
+//#define YELLOW_HOUSE_G_MAX  1500
+//#define YELLOW_HOUSE_B_MIN  1000
+//#define YELLOW_HOUSE_B_MAX  2000
+//
+//#define RED_HOUSE_R_MIN  500
+//#define RED_HOUSE_R_MAX  1500
+//#define RED_HOUSE_G_MIN  2500
+//#define RED_HOUSE_G_MAX  3500
+//#define RED_HOUSE_B_MIN  1500
+//#define RED_HOUSE_B_MAX  2500
 
-#define RED_HOUSE_R_MIN  500
-#define RED_HOUSE_R_MAX  1500
-#define RED_HOUSE_G_MIN  2500
-#define RED_HOUSE_G_MAX  3500
-#define RED_HOUSE_B_MIN  1500
-#define RED_HOUSE_B_MAX  2500
+#define RED_HOUSE_B_MAX  3000
+#define YELLOW_HOUSE_RGB_MAX  2000
+#define YELLOW_HOUSE_R_MAX  1200
 
 #define YELLOW_HOUSE_ID   0
 #define RED_HOUSE_ID      1
@@ -284,8 +288,8 @@ void update_yaw_calc_motor_speed() {
 
   // Set yaw value
   yaw = abs(180*theta_z/M_PI);
-  Serial.print("Yaw [deg]: ");
-  Serial.println(yaw);
+//  Serial.print("Yaw [deg]: ");
+//  Serial.println(yaw);
 
   // Adjust the output according to current yaw value
 //  turnPID.Compute();
@@ -309,14 +313,14 @@ void reset_dist_params() {
 
 long update_dist_travelled() {
   curr_dist = sr04.Distance();
-  Serial.print("Current distance: ");
-  Serial.println(curr_dist);
+//  Serial.print("Current distance: ");
+//  Serial.println(curr_dist);
   if (abs(curr_dist - prev_dist) < MAX_DIST_DIFF) {
     dist_travelled = dist_travelled + (prev_dist - curr_dist);
     prev_dist = curr_dist;
   }
-  Serial.print("Distance travelled: ");
-  Serial.println(dist_travelled);
+//  Serial.print("Distance travelled: ");
+//  Serial.println(dist_travelled);
   delay(50);
 }
 
@@ -341,9 +345,9 @@ int detect_house(){
 //  blue = map(blue, BLUE_LOW_VAL, BLUE_HIGH_VAL, 0, 255);
   delay(100);
 
-  if(red > YELLOW_HOUSE_R_MIN && red < YELLOW_HOUSE_R_MAX &&
-     green > YELLOW_HOUSE_G_MIN && green < YELLOW_HOUSE_G_MAX &&
-     blue > YELLOW_HOUSE_B_MIN && blue < YELLOW_HOUSE_B_MAX){
+  if(blue > green && green > red && red < YELLOW_HOUSE_RGB_MAX &&
+     green < YELLOW_HOUSE_RGB_MAX && blue < YELLOW_HOUSE_RGB_MAX &&
+     red < YELLOW_HOUSE_R_MAX){
     
     Serial.println("Detecting yellow house!!!");
     tasks[FIND_LOST_PERSON].obj_location[ROW_INDEX]=curr_pos[ROW_INDEX];
@@ -356,10 +360,7 @@ int detect_house(){
     Serial.println(")");
     return YELLOW_HOUSE_ID;
     
-  } else if(red > RED_HOUSE_R_MIN && red < RED_HOUSE_R_MAX &&
-            green > RED_HOUSE_G_MIN && green < RED_HOUSE_G_MAX &&
-            blue > RED_HOUSE_B_MIN && blue < RED_HOUSE_B_MAX){
-    
+  } else if(green > blue && blue > red && blue < RED_HOUSE_B_MAX){
     Serial.println("Detecting red house!!!");
     tasks[FEED_SURVIVORS].obj_location[ROW_INDEX]=curr_pos[ROW_INDEX];
     tasks[FEED_SURVIVORS].obj_location[COL_INDEX]=curr_pos[COL_INDEX];
@@ -385,6 +386,7 @@ void handle_house(int house_id){
     if (tasks[PUT_OUT_FIRE].task_status == 1){
       Serial.println("Saving lost person. Find lost person task complete.");
       tasks[FIND_LOST_PERSON].task_status = 1;
+      blink_led(tasks[FIND_LOST_PERSON]);
     } else {
       Serial.println("Not saving lost person yet. Fire has not been put out.");
     }
@@ -392,7 +394,8 @@ void handle_house(int house_id){
     // Survivors
     if (tasks[PUT_OUT_FIRE].task_status == 1 && tasks[FIND_FOOD].task_status == 1){
       Serial.println("Feeding survivors. Feed survivors task complete.");
-      tasks[FIND_LOST_PERSON].task_status = 1;
+      tasks[FEED_SURVIVORS].task_status = 1;
+      blink_led(tasks[FEED_SURVIVORS]);
     } else {
       Serial.println("Not feeding survivors yet. Either food has not yet been found or fire has not been put out.");
     }
@@ -425,10 +428,10 @@ long handle_flame(){
 
   reset_dist_params();
   
-  digitalWrite(DIR_A_M1, LOW);
-  digitalWrite(DIR_A_M2, LOW);
-  digitalWrite(DIR_B_M1, HIGH);
-  digitalWrite(DIR_B_M2, HIGH);
+  digitalWrite(DIR_A_M1, HIGH);
+  digitalWrite(DIR_A_M2, HIGH);
+  digitalWrite(DIR_B_M1, LOW);
+  digitalWrite(DIR_B_M2, LOW);
 
   while (detect_flame()){
     update_dist_travelled();
@@ -436,8 +439,8 @@ long handle_flame(){
 
   delay(300);
 
-  digitalWrite(DIR_B_M1, LOW);
-  digitalWrite(DIR_B_M2, LOW);
+  digitalWrite(DIR_A_M1, LOW);
+  digitalWrite(DIR_A_M2, LOW);
   
   update_dist_travelled();
   extra_dist_travelled = dist_travelled;
@@ -447,6 +450,7 @@ long handle_flame(){
   // Assuming flame is already out
   Serial.println("Flame is extinguished. Put out fire task is complete.");
   tasks[PUT_OUT_FIRE].task_status = 1;
+  blink_led(tasks[PUT_OUT_FIRE]);
 
   return extra_dist_travelled;
 }
@@ -477,6 +481,7 @@ void detect_and_handle_food(){
     if (tasks[PUT_OUT_FIRE].task_status == 1){
       Serial.println("Picking up food. Find food task complete.");
       tasks[FIND_FOOD].task_status = 1;
+      blink_led(tasks[FIND_FOOD]);
     } else {
       Serial.println("Not picking up food yet. Fire has not been put out.");
     }
@@ -504,7 +509,7 @@ void move_bwd(int dist){
   digitalWrite(DIR_B_M1, HIGH);
   digitalWrite(DIR_B_M2, HIGH);
 
-  while (dist_travelled > dist){
+  while (dist_travelled > -dist){
     update_dist_travelled();
   }
 
@@ -610,6 +615,10 @@ int move_fwd(int dist){
   Serial.print(", ");
   Serial.print(curr_pos[COL_INDEX]);
   Serial.println(")");
+
+  Serial.print("Direction: ");
+  Serial.println(curr_dir);
+  
   delay(500);
   return obstacle_ahead;
 };
@@ -622,7 +631,7 @@ void turn(TURN_DIRECTION turn_dir){
   motor_speed = MIN_TURN_SPEED;
   
   // Initialize PID Parameters
-  desired_yaw = 80.0; // 81 degrees
+  desired_yaw = 83.0; // 81 degrees
 //  turnPID.SetMode(AUTOMATIC); // Turn the PID on
 //  turnPID.SetTunings(Kp, Ki, Kd);
 
@@ -661,6 +670,8 @@ void turn(TURN_DIRECTION turn_dir){
       curr_dir = 3;
     }
   }
+  Serial.print("New direction: ");
+  Serial.println(curr_dir);
 }
 
 int all_tiles_in_layer_explored(){
@@ -1053,6 +1064,7 @@ void setup() {
     tasks[i].obj_location[COL_INDEX] = -1; // -1 means unknown
     tasks[i].obj_location_known = 0;
   }
+  tasks[PUT_OUT_FIRE].task_status = 1;
 
   // Initialize terrain map
   terrain_map[START_ROW][START_COL] = 1;
@@ -1121,7 +1133,7 @@ void loop() {
                 (curr_pos[COL_INDEX] >= 5);
       if (!at_edge){
         // Check if right tile is not explored
-        Serial.print("Not at edge. Check if right tile is unexplored.");
+        Serial.println("Not at edge. Check if right tile is unexplored.");
         if(curr_dir = NORTH){
           tile_to_right[ROW_INDEX] = curr_pos[ROW_INDEX];
           tile_to_right[COL_INDEX] = curr_pos[COL_INDEX]+1;
@@ -1135,10 +1147,14 @@ void loop() {
           tile_to_right[ROW_INDEX] = curr_pos[ROW_INDEX]+1;
           tile_to_right[COL_INDEX] = curr_pos[COL_INDEX];
         }
+        Serial.println(tile_to_right[ROW_INDEX]);
+        Serial.println(tile_to_right[COL_INDEX]);
         if(terrain_map[tile_to_right[ROW_INDEX]][tile_to_right[COL_INDEX]] == 0){
           // Right tile exists and is not explored, turn CW
           Serial.print("Right tile exists and is unexplored.");
           turn(CW);
+        } else {
+          Serial.println("Right tile has been explored.");
         }
       }
       // Not sure about this statement, test this...
