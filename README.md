@@ -1,0 +1,2 @@
+# 380Project
+The design of the autonomous device is for the 380 course project. It was in form of a tank, which was able to deal with the rough and varying types of terrains. The plan to traverse the terrain and deal with all the tasks are done using various sensors, including a Hall effect sensor, flame sensor, ultrasonic sensor, and colour sensor, that help the robot find the food, put out the fire, identify objects, and locate the Lego people, respectively.
